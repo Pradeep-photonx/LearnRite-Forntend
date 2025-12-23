@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { Box, Container, Grid, Stack, Typography, styled } from "@mui/material";
 import image01 from '../../assets/images/image-01.png';
 import image02 from '../../assets/images/image-02.png';
@@ -8,9 +9,9 @@ import image03 from '../../assets/images/image-03.png';
 const FeatureSectionContainer = styled(Box)(({ theme }) => ({
   padding: "120px 0",
   backgroundColor: "#FFFFFF",
-//   [theme.breakpoints.down("md")]: {
-//     padding: "40px 0",
-//   },
+  //   [theme.breakpoints.down("md")]: {
+  //     padding: "40px 0",
+  //   },
 }));
 
 const FeatureCard = styled(Box)<{ bgColor: string }>(({ bgColor, theme }) => ({
@@ -36,9 +37,9 @@ const CardContent = styled(Box)(({ theme }) => ({
   zIndex: 2,
   position: "relative",
   flex: "0 0 auto",
-//   [theme.breakpoints.down("md")]: {
-//     padding: "24px 24px 16px 24px",
-//   },
+  //   [theme.breakpoints.down("md")]: {
+  //     padding: "24px 24px 16px 24px",
+  //   },
 }));
 
 const CardImageContainer = styled(Box)({
@@ -53,9 +54,9 @@ const CardImageContainer = styled(Box)({
 });
 
 const CardImage = styled("img")({
-    width: '100%',
-    height: '315px',
-    objectFit: 'contain',
+  width: '100%',
+  height: '315px',
+  objectFit: 'contain',
 });
 
 // Feature Card Data Interface
@@ -68,6 +69,7 @@ interface FeatureCardData {
   image: string;
   imageAlt: string;
   backgroundColor: string;
+  navigationPath: string;
 }
 
 // Default Feature Cards Data
@@ -81,6 +83,7 @@ const defaultFeatureCards: FeatureCardData[] = [
     image: image01, // Replace with actual image path
     imageAlt: "Girl with notebook and backpack",
     backgroundColor: "#E8F5E9", // Light mint green
+    navigationPath: "/schools",
   },
   {
     id: 2,
@@ -91,16 +94,18 @@ const defaultFeatureCards: FeatureCardData[] = [
     image: image02, // Replace with actual image path
     imageAlt: "Boy holding colorful books",
     backgroundColor: "#FFF3E0", // Light peach/beige
+    navigationPath: "/categories",
   },
   {
     id: 3,
     title: "Stationery Hub",
-    subtitle: "All Must-Haves", 
+    subtitle: "All Must-Haves",
     textColor: "#824044",
     subtitleColor: "#A16C6F",
     image: image03, // Replace with actual image path
     imageAlt: "Colorful stationery items",
     backgroundColor: "#FCE4EC", // Light pink
+    navigationPath: "/categories",
   },
 ];
 
@@ -109,19 +114,25 @@ interface FeatureProps {
 }
 
 const Feature: React.FC<FeatureProps> = ({ featureCards = defaultFeatureCards }) => {
+  const navigate = useNavigate();
+
   return (
     <FeatureSectionContainer>
       <Container maxWidth="lg">
-        <Grid container spacing ={{ xs: 2, md: 3 }}>
+        <Grid container spacing={{ xs: 2, md: 3 }}>
           {featureCards.map((card) => (
             <Grid key={card.id} size={{ xs: 12, md: 4 }}>
-              <FeatureCard bgColor={card.backgroundColor}>
+              <FeatureCard
+                bgColor={card.backgroundColor}
+                onClick={() => navigate(card.navigationPath)}
+                sx={{ cursor: 'pointer' }}
+              >
                 <CardContent>
                   <Stack spacing={1} alignItems={'center'}>
                     <Typography
                       variant="sb26"
                       color={card.textColor}
-                       >
+                    >
                       {card.title}
                     </Typography>
                     <Typography

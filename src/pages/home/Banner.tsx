@@ -12,7 +12,7 @@ import banner2 from "../../assets/images/banner-slide.png";
 import banner3 from "../../assets/images/banner-slide.png";
 import { WhatsappSmallIcon } from "../../components/icons/CommonIcons";
 import FeaturesSection from "./FeaturesSection";
-
+import { useNavigate } from "react-router-dom";
 
 
 const HeroSection = styled(Box)({
@@ -101,12 +101,13 @@ const Banner: React.FC<{ slides?: SlideData[] }> = ({ slides = defaultSlides }) 
     setCurrentSlide(index);
   };
 
+  const navigate = useNavigate()
   return (
     <Box>
 
 
       {/* Hero Section with Slider */}
-      <HeroSection sx={{ height: "100vh", position: "relative" }}>
+      <HeroSection sx={{ height: "65vh", position: "relative" }}>
         <Box sx={{
           width: "100%",
           height: "100%",
@@ -135,21 +136,21 @@ const Banner: React.FC<{ slides?: SlideData[] }> = ({ slides = defaultSlides }) 
                 >
                   <Stack gap={"30px"}>
                     <Stack gap={"15px"}>
-                    <Typography
-                      sx={{
-                        maxWidth: { xs: "100%", md: "100%" },
-                      }}
-                      variant="h1">
-                      {slide.headline1}
-                      <br />
-                      <span style={{ fontWeight: "600"}}>
-                        {slide.headline2}
-                      </span>
-                    </Typography>
-                    <Typography
-                      variant="m18" color="text.secondary" >
-                      {slide.description}
-                    </Typography>
+                      <Typography
+                        sx={{
+                          maxWidth: { xs: "100%", md: "100%" },
+                        }}
+                        variant="h1">
+                        {slide.headline1}
+                        <br />
+                        <span style={{ fontWeight: "600" }}>
+                          {slide.headline2}
+                        </span>
+                      </Typography>
+                      <Typography
+                        variant="m18" color="text.secondary" >
+                        {slide.description}
+                      </Typography>
                     </Stack>
 
                     {/* Buttons */}
@@ -162,6 +163,7 @@ const Banner: React.FC<{ slides?: SlideData[] }> = ({ slides = defaultSlides }) 
                       }}
                     >
                       <Button
+                        onClick={() => navigate('/categories')}
                         variant="contained">
                         Browse Categories
                       </Button>
@@ -188,23 +190,23 @@ const Banner: React.FC<{ slides?: SlideData[] }> = ({ slides = defaultSlides }) 
                     </Stack>
                   </Stack>
                   <Stack
-                  direction="row"
-                  spacing={1}
-                  justifyContent="center"
-                  sx={{ mt: { xs: 4, md: 6 }, position: "absolute", bottom: "20px", left: "0%", zIndex: 2 }}
-                >
-                  {slides.map((_, index) => (
-                    <DotIndicator
-                      key={index}
-                      active={index === currentSlide}
-                      onClick={() => handleDotClick(index)}
-                    />
-                  ))}
-                </Stack>
+                    direction="row"
+                    spacing={1}
+                    justifyContent="center"
+                    sx={{ mt: { xs: 4, md: 6 }, position: "absolute", bottom: "20px", left: "0%", zIndex: 2 }}
+                  >
+                    {slides.map((_, index) => (
+                      <DotIndicator
+                        key={index}
+                        active={index === currentSlide}
+                        onClick={() => handleDotClick(index)}
+                      />
+                    ))}
+                  </Stack>
                 </Box>
               </Container>
             </SlideContainer>
-          ))}          
+          ))}
         </Box>
       </HeroSection>
       <FeaturesSection />

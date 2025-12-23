@@ -11,10 +11,16 @@ import {
     Stack,
     styled,
     Paper,
+    Menu,
+    MenuItem,
 } from "@mui/material";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { KeyboardArrowDown } from "@mui/icons-material";
 import DelhiPublic from '../../assets/images/delhi-public-school.png';
 import { BoardIcon, SearchIcon, WhiteRightArrowIcon } from "../../components/icons/CommonIcons";
+import { useSchoolClasses } from "../../api/useSchoolClasses";
+import { CircularProgress } from "@mui/material";
+import type { School } from "../../api/school";
 
 // Styled Components
 const SchoolBanner = styled(Box)(() => ({
@@ -59,11 +65,11 @@ const SchoolLogo = styled("img")({
 });
 
 const HeaderSection = styled(Box)(({ theme }) => ({
-    display:"flex",
-    justifyContent:"left",
-    alignItems:"left",
-    flexDirection:"column",
-    gap:"20px",
+    display: "flex",
+    justifyContent: "left",
+    alignItems: "left",
+    flexDirection: "column",
+    gap: "20px",
     marginBottom: "30px",
     [theme.breakpoints.down("md")]: {
         marginBottom: "20px",
@@ -88,6 +94,26 @@ const SearchField = styled(TextField)(({ theme }) => ({
     },
     [theme.breakpoints.down("md")]: {
         maxWidth: "100%",
+    },
+}));
+
+const FilterButton = styled(Button)(({ theme }) => ({
+    padding: "12px 16px",
+    borderRadius: "10px",
+    textTransform: "none",
+    fontSize: "16px",
+    fontWeight: 500,
+    color: "#111827",
+    backgroundColor: "#FFFFFF",
+    border: "1px solid #D1D4DE",
+    minWidth: "180px",
+    justifyContent: "space-between",
+    "&:hover": {
+        backgroundColor: "#F9FAFB",
+        borderColor: "#D1D4DE",
+    },
+    [theme.breakpoints.down("md")]: {
+        minWidth: "100%",
     },
 }));
 
@@ -147,7 +173,7 @@ const ClassDetails = styled(Box)({
 const DetailRow = styled(Box)({
     display: "flex",
     alignItems: "center",
-    justifyContent:"space-between",
+    justifyContent: "space-between",
 });
 
 const ViewBundleButton = styled(Button)(() => ({
@@ -162,272 +188,190 @@ const ViewBundleButton = styled(Button)(() => ({
 }));
 
 // Class Data Interface
-interface ClassData {
-    id: number | string;
-    name: string;
-    slug: string;
-    description: string;
-    totalBooks: number;
-    totalItems: number;
-    price: number;
-    icon?: string;
-}
 
-// School Data Interface
-interface SchoolInfo {
-    id: number | string;
-    name: string;
-    slug: string;
-    logo: string;
-    board: string;
-    location: string;
-    classesCount: number;
-}
 
-// Default School Info (will be fetched based on schoolSlug)
-const getSchoolInfo = (schoolSlug: string | undefined): SchoolInfo => {
-    // In real app, this would be fetched from API based on slug
-    // For now, mapping slugs to school info
-    const schoolMap: Record<string, SchoolInfo> = {
-        "delhi-public-school": {
-            id: 1,
-            name: "Delhi Public School",
-            slug: "delhi-public-school",
-            logo: DelhiPublic,
-            board: "CBSE Board",
-            location: "Kondapur, Hyderabad",
-            classesCount: 12,
-        },
-        "suchitra-academy": {
-            id: 2,
-            name: "Suchitra Academy",
-            slug: "suchitra-academy",
-            logo: DelhiPublic,
-            board: "CBSE Board",
-            location: "Madhapur, Hyderabad",
-            classesCount: 10,
-        },
-        "oakridge-international-school": {
-            id: 3,
-            name: "Oakridge International School",
-            slug: "oakridge-international-school",
-            logo: DelhiPublic,
-            board: "IB Board",
-            location: "Gachibowli, Hyderabad",
-            classesCount: 15,
-        },
-    };
-    
-    return schoolMap[schoolSlug || "delhi-public-school"] || schoolMap["delhi-public-school"];
-};
 
-// Default Classes Data
-const defaultClasses: ClassData[] = [
-    {
-        id: 1,
-        name: "Lower Kindergarten",
-        slug: "lower-kindergarten",
-        description: "Foundation learning with play based activities",
-        totalBooks: 8,
-        totalItems: 15,
-        price: 2280,
-    },
-    {
-        id: 2,
-        name: "Upper Kindergarten",
-        slug: "upper-kindergarten",
-        description: "Advanced learning with interactive activities",
-        totalBooks: 10,
-        totalItems: 18,
-        price: 2800,
-    },
-    {
-        id: 3,
-        name: "Class 1",
-        slug: "class-1",
-        description: "Elementary education foundation",
-        totalBooks: 12,
-        totalItems: 20,
-        price: 3200,
-    },
-    {
-        id: 4,
-        name: "Class 2",
-        slug: "class-2",
-        description: "Building on foundational skills",
-        totalBooks: 12,
-        totalItems: 20,
-        price: 3200,
-    },
-    {
-        id: 5,
-        name: "Class 3",
-        slug: "class-3",
-        description: "Developing critical thinking",
-        totalBooks: 14,
-        totalItems: 22,
-        price: 3500,
-    },
-    {
-        id: 6,
-        name: "Class 4",
-        slug: "class-4",
-        description: "Expanding knowledge base",
-        totalBooks: 14,
-        totalItems: 22,
-        price: 3500,
-    },
-    {
-        id: 7,
-        name: "Class 5",
-        slug: "class-5",
-        description: "Preparing for middle school",
-        totalBooks: 16,
-        totalItems: 24,
-        price: 3800,
-    },
-    {
-        id: 8,
-        name: "Class 6",
-        slug: "class-6",
-        description: "Middle school curriculum",
-        totalBooks: 18,
-        totalItems: 26,
-        price: 4200,
-    },
-    {
-        id: 9,
-        name: "Class 7",
-        slug: "class-7",
-        description: "Advanced middle school",
-        totalBooks: 18,
-        totalItems: 26,
-        price: 4200,
-    },
-    {
-        id: 10,
-        name: "Class 8",
-        slug: "class-8",
-        description: "Preparing for high school",
-        totalBooks: 20,
-        totalItems: 28,
-        price: 4500,
-    },
-    {
-        id: 11,
-        name: "Class 9",
-        slug: "class-9",
-        description: "High school foundation",
-        totalBooks: 22,
-        totalItems: 30,
-        price: 5000,
-    },
-    {
-        id: 12,
-        name: "Class 10",
-        slug: "class-10",
-        description: "Board exam preparation",
-        totalBooks: 24,
-        totalItems: 32,
-        price: 5500,
-    },
-];
 
 const SchoolClasses: React.FC = () => {
     const navigate = useNavigate();
     const { schoolSlug } = useParams<{ schoolSlug: string }>();
+    const location = useLocation();
     const [searchQuery, setSearchQuery] = useState("");
+    const [selectedLanguage, setSelectedLanguage] = useState("All Languages");
+    const [languageAnchor, setLanguageAnchor] = useState<null | HTMLElement>(null);
 
-    const schoolInfo = getSchoolInfo(schoolSlug);
+    const languageOpen = Boolean(languageAnchor);
+    const languageOptions = ["All Languages", "Telugu", "Hindi"];
 
-    const handleClassClick = (classData: ClassData) => {
-        // Navigate to class bundle details page using slugs
-        navigate(`/schools/${schoolSlug}/${classData.slug}`);
+    // Get school data from location state
+    const school = location.state?.school as School | undefined;
+
+    const { classes, loading, error } = useSchoolClasses(school?.school_id || null);
+
+    console.log('SchoolClasses Debug:', {
+        school,
+        schoolId: school?.school_id,
+        classes,
+        loading,
+        error
+    });
+
+    const handleLanguageClick = (event: React.MouseEvent<HTMLElement>) => {
+        setLanguageAnchor(event.currentTarget);
     };
 
-    // Filter classes based on search
-    const filteredClasses = defaultClasses.filter((classItem) =>
-        classItem.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const handleLanguageClose = () => {
+        setLanguageAnchor(null);
+    };
+
+    const handleLanguageSelect = (language: string) => {
+        setSelectedLanguage(language);
+        setLanguageAnchor(null);
+    };
+
+    const handleClassClick = (classItem: any, bundle: any) => {
+        try {
+            // Navigate to class bundle details page using slugs
+            const className = classItem?.class_name || 'class';
+            const language = bundle?.language || 'bundle';
+            navigate(`/schools/${schoolSlug}/${className.toLowerCase().replace(/ /g, '-')}-${language.toLowerCase()}`, {
+                state: {
+                    classItem: {
+                        ...classItem,
+                        ...bundle,
+                        bundle_name: `${classItem.class_name} - ${bundle.language}`,
+                    },
+                    school
+                }
+            });
+        } catch (err) {
+            console.error('Error navigating to class:', err);
+        }
+    };
+
+    // Filter classes based on search and language - with extra safety
+    const filteredClasses = Array.isArray(classes) ? classes.filter((classItem) => {
+        const matchesSearch =
+            (classItem?.class_name || "").toLowerCase().includes(searchQuery.toLowerCase());
+
+        // Check if any bundle in the class matches the selected language
+        const hasLanguage = selectedLanguage === "All Languages" ||
+            classItem.bundles?.some(bundle => bundle.language === selectedLanguage);
+
+        return matchesSearch && hasLanguage;
+    }) : [];
+
+    // Early return for error state
+    if (error && !loading) {
+        return (
+            <Container maxWidth="xl">
+                <Box sx={{ padding: "100px 20px", textAlign: "center" }}>
+                    <Typography variant="h5" color="error" gutterBottom>
+                        {error}
+                    </Typography>
+                    <Button
+                        variant="contained"
+                        onClick={() => navigate('/schools')}
+                        sx={{ marginTop: "20px" }}
+                    >
+                        Back to Schools
+                    </Button>
+                </Box>
+            </Container>
+        );
+    }
 
     return (
         <>
             {/* School Banner Section */}
             <Container maxWidth="xl">
-                <SchoolBanner>
-                    <BannerContent>
-                        <BannerLeft>
-                            <Box sx={{
-                                display: "flex",
-                                gap: "10px",
-                                alignItems: "center",
-                                backgroundColor: "#FFFFFF1A",
-                                backdropFilter: "blur(10px)",
-                                padding: "5px 10px",
-                                borderRadius: "50px",
-                                width: "fit-content",
-                            }}>
-                                <BoardIcon />
-                                <Typography
-                                    variant="r14"
-                                    sx={{
-                                        color: "#E7EBF0",
-                                        opacity: 0.9,
-                                    }}
-                                >
-                                    {schoolInfo.board}
-                                </Typography>
-                            </Box>
-                            <Box sx={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: "5px",
-                            }}>
-                                <Typography
-                                    variant="m24"
-                                    sx={{
-                                        color: "#FFFFFF",
-                                    }}
-                                >
-                                    {schoolInfo.name}
-                                </Typography>
-                                <Typography
-                                    variant="r14"
-                                    sx={{
-                                        color: "#FFF",
-                                    }}
-                                >
-                                    {schoolInfo.location}
-                                </Typography>
-                            </Box>
-                            <Box sx={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: "5px",
-                            }}>
-                                <Typography
-                                    variant="m24"
+                {!school ? (
+                    <Box sx={{ padding: "50px", textAlign: "center" }}>
+                        <Typography variant="h5">School details not found. Please select a school first.</Typography>
+                        <Button onClick={() => navigate('/schools')} sx={{ marginTop: "20px" }}>Back to Schools</Button>
+                    </Box>
+                ) : (
+                    <SchoolBanner>
+                        <BannerContent>
+                            <BannerLeft>
+                                <Box sx={{
+                                    display: "flex",
+                                    gap: "10px",
+                                    alignItems: "center",
+                                    backgroundColor: "#FFFFFF1A",
+                                    backdropFilter: "blur(10px)",
+                                    padding: "5px 10px",
+                                    borderRadius: "50px",
+                                    width: "fit-content",
+                                }}>
+                                    <BoardIcon />
+                                    <Typography
+                                        variant="r14"
+                                        sx={{
+                                            color: "#E7EBF0",
+                                            opacity: 0.9,
+                                        }}
+                                    >
+                                        {school.board}
+                                    </Typography>
+                                </Box>
+                                <Box sx={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: "5px",
+                                }}>
+                                    <Typography
+                                        variant="m24"
+                                        sx={{
+                                            color: "#FFFFFF",
+                                        }}
+                                    >
+                                        {school.name}
+                                    </Typography>
+                                    <Typography
+                                        variant="r14"
                                         sx={{
                                             color: "#FFF",
                                         }}
-                                >
-                                    {schoolInfo.classesCount}
-                                </Typography>
-                                <Typography
-                                    variant="r14"
-                                    sx={{
-                                        color: "#FFF",
+                                    >
+                                        {school.branch}
+                                    </Typography>
+                                </Box>
+                                <Box sx={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: "5px",
+                                }}>
+                                    <Typography
+                                        variant="m24"
+                                        sx={{
+                                            color: "#FFF",
+                                        }}
+                                    >
+                                        {classes?.length || 0}
+                                    </Typography>
+                                    <Typography
+                                        variant="r14"
+                                        sx={{
+                                            color: "#FFF",
+                                        }}
+                                    >
+                                        Classes Available
+                                    </Typography>
+                                </Box>
+                            </BannerLeft>
+                            <BannerRight>
+                                <SchoolLogo
+                                    src={school.image}
+                                    alt={`${school.name} Logo`}
+                                    onError={(e) => {
+                                        (e.target as HTMLImageElement).src = DelhiPublic;
                                     }}
-                                >
-                                    Classes Available
-                                </Typography>
-                            </Box>
-                        </BannerLeft>
-                        <BannerRight>
-                            <SchoolLogo src={schoolInfo.logo} alt={`${schoolInfo.name} Logo`} />
-                        </BannerRight>
-                    </BannerContent>
-                </SchoolBanner>
+                                />
+                            </BannerRight>
+                        </BannerContent>
+                    </SchoolBanner>
+                )}
             </Container>
 
             {/* Classes Section */}
@@ -435,162 +379,229 @@ const SchoolClasses: React.FC = () => {
                 <Paper sx={{
                     margin: "30px 0px 60px 0px",
                     padding: "30px",
-                    borderRadius:"15px",
-                    boxShadow:"unset",
-                    border:"1px solid #CFCDCD4D",
+                    borderRadius: "15px",
+                    boxShadow: "unset",
+                    border: "1px solid #CFCDCD4D",
                 }}>
-                    <HeaderSection>
-                       <Box sx={{
-                        display:"flex",
-                        flexDirection:"column",
-                        justifyContent:"left",
-                        alignItems:"left",
-                        gap:"05px",
-                       }}>
-                        <Typography variant="sb32">
-                            Select Your Class
-                        </Typography>
-                        <Typography variant="r14" sx={{ color: "#445061" }}>
-                        Choose your class to view the complete book bundle kit
-                        </Typography>
-                       </Box>
+                    <Stack sx={{
+                        display: "flex",
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                    }}>
+                        <HeaderSection>
+                            <Box sx={{
+                                display: "flex",
+                                flexDirection: "column",
+                                justifyContent: "left",
+                                alignItems: "left",
+                                gap: "05px",
+                            }}>
+                                <Typography variant="sb32">
+                                    Select Your Class
+                                </Typography>
+                                <Typography variant="r14" sx={{ color: "#445061" }}>
+                                    Choose your class to view the complete book bundle kit
+                                </Typography>
+                            </Box>
 
-                        {/* Search Bar */}
-                        <SearchField
-                        sx={{
-                            "& .MuiOutlinedInput-root":{
-                              width:"350px !important",
-                              height:"48px !important",
-                              padding:"10px !important",
-                              borderRadius:"10px !important",
-                            }
-                          }}
-                            placeholder="Search for classes"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            InputProps={{
-                                endAdornment: (
-                                    <InputAdornment position="end">
-                                        <IconButton
-                                            sx={{
-                                                "&:hover": {
-                                                  backgroundColor: "unset !important",
-                                                },
-                                              }}
-                                        >
-                                            <SearchIcon />
-                                        </IconButton>
-                                    </InputAdornment>
-                                ),
-                            }}
-                        />
-                    </HeaderSection>
-
-                    {/* Classes Grid */}
-                    <Grid container spacing={{ xs: 2, md: 3 }}>
-                        {filteredClasses.map((classItem) => (
-                            <Grid key={classItem.id} size={{ xs: 12, sm: 6, md: 4 }}>
-                                <ClassCard onClick={() => handleClassClick(classItem)}>
-                                    <ClassIconContainer>
-                                        <ClassIcon>
-                                            {/* Placeholder for class icon - in real app, this would be an image */}
-                                            <Box
+                            {/* Search Bar */}
+                            <SearchField
+                                sx={{
+                                    "& .MuiOutlinedInput-root": {
+                                        width: "350px !important",
+                                        height: "48px !important",
+                                        padding: "10px !important",
+                                        borderRadius: "10px !important",
+                                    }
+                                }}
+                                placeholder="Search for classes"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                InputProps={{
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            <IconButton
                                                 sx={{
-                                                    width: "100px",
-                                                    height: "100px",
-                                                    backgroundColor: "#E3E6F6",
-                                                    borderRadius: "8px",
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    justifyContent: "center",
+                                                    "&:hover": {
+                                                        backgroundColor: "unset !important",
+                                                    },
                                                 }}
                                             >
-                                                <Typography variant="r14" sx={{ color: "#6B7280" }}>
-                                                    Icon
+                                                <SearchIcon />
+                                            </IconButton>
+                                        </InputAdornment>
+                                    ),
+                                }}
+                            />
+                        </HeaderSection>
+
+                        {/* Language Filter */}
+                        <Box sx={{
+                            display: "flex",
+                            gap: "20px",
+                            marginBottom: "30px"
+                        }}>
+                            <FilterButton
+                                sx={{
+                                    border: "1px solid #121419 !important",
+                                    color: "#121419 !important",
+                                    borderRadius: "06px !important",
+                                    fontSize: "14px !important",
+                                    fontWeight: "500 !important",
+                                }}
+                                onClick={handleLanguageClick}
+                                endIcon={<KeyboardArrowDown />}
+                            >
+                                {selectedLanguage}
+                            </FilterButton>
+
+                            <Menu
+                                anchorEl={languageAnchor}
+                                open={languageOpen}
+                                onClose={handleLanguageClose}
+                            >
+                                {languageOptions.map((language) => (
+                                    <MenuItem
+                                        key={language}
+                                        onClick={() => handleLanguageSelect(language)}
+                                        sx={{
+                                            fontSize: "14px !important",
+                                            fontWeight: "500 !important",
+                                            color: "#121419 !important",
+                                        }}
+                                    >
+                                        {language}
+                                    </MenuItem>
+                                ))}
+                            </Menu>
+                        </Box>
+                    </Stack>
+
+
+                    {/* Classes Grid */}
+                    {loading ? (
+                        <Box sx={{ display: "flex", justifyContent: "center", padding: "100px 0" }}>
+                            <CircularProgress />
+                        </Box>
+                    ) : error ? (
+                        <Box sx={{ textAlign: "center", padding: "60px 20px" }}>
+                            <Typography variant="h6" color="error">{error}</Typography>
+                        </Box>
+                    ) : filteredClasses.length > 0 ? (
+                        <Grid container spacing={{ xs: 2, md: 3 }}>
+                            {filteredClasses.map((classItem) => (
+                                <Grid key={classItem.class_id} size={{ xs: 12, sm: 6, md: 4 }}>
+                                    <ClassCard>
+                                        <ClassIconContainer>
+                                            <ClassIcon>
+                                                <Box
+                                                    sx={{
+                                                        width: "150px",
+                                                        height: "150px",
+                                                        // backgroundColor: "#e3e6f6",
+                                                        borderRadius: "8px",
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        justifyContent: "center",
+                                                        overflow: "hidden",
+                                                    }}
+                                                >
+                                                    {classItem.class_image ? (
+                                                        <img
+                                                            src={`${classItem.class_image}`}
+                                                            alt={classItem.class_name}
+                                                            style={{
+                                                                width: "100%",
+                                                                height: "100%",
+                                                                objectFit: "cover",
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <Typography variant="sb32" sx={{ color: "#2C65F9" }}>
+                                                            {classItem.class_name?.charAt(0) || "C"}
+                                                        </Typography>
+                                                    )}
+                                                </Box>
+                                            </ClassIcon>
+                                        </ClassIconContainer>
+                                        <ClassContent>
+                                            <Box sx={{
+                                                display: "flex",
+                                                justifyContent: "left",
+                                                alignItems: "left",
+                                                flexDirection: "column",
+                                                gap: "2px",
+                                            }}>
+                                                <Typography variant="sb16">
+                                                    {classItem.class_name || "Class"}
+                                                </Typography>
+                                                <Typography variant="r14" color="text.secondary">
+                                                    Foundation learning with play based activities
                                                 </Typography>
                                             </Box>
-                                        </ClassIcon>
-                                    </ClassIconContainer>
-                                    <ClassContent>
-                                        <Box sx={{
-                                            display:"flex",
-                                            justifyContent:"left",
-                                            alignItems:"left",
-                                            flexDirection:"column",
-                                            gap:"2px",
-                                        }}>
-                                            <Typography variant="sb16">
-                                            {classItem.name}
-                                        </Typography>
-                                        <Typography variant="r14" color="text.secondary">
-                                            {classItem.description}
-                                        </Typography>
-                                        </Box>
-                                        <ClassDetails>
-                                            <DetailRow>
-                                                <Typography variant="r16" sx={{ color: "#445061" }}>
-                                                    Total Books
-                                                    </Typography>
-                                                    <Typography variant="sb16">
-                                                        {classItem.totalBooks} books
-                                                    </Typography>
-                                            </DetailRow>
-                                            <DetailRow>
-                                                <Typography variant="r14" sx={{ color: "#445061" }}>
-                                                    Total Items:
-                                                </Typography>
-                                                <Typography variant="sb16">
-                                                    {classItem.totalItems} items
-                                                </Typography>
-                                            </DetailRow>
-                                        </ClassDetails>
-                                        <Stack direction="row" spacing={2} justifyContent="space-between" alignItems="center"
-                                        sx={{
-                                            borderTop:"1px solid #1214191A",
-                                            paddingTop:"10px",
-                                        }}
-                                        >
-                                        <Typography
-                                            variant="r16"
-                                            // sx={{
-                                            //     color: "#121318",
-                                            //     marginTop: "8px",
-                                            // }}
-                                        >
-                                            Bundle Prices: 
-                                        </Typography>
-                                        <Box sx={{
-                                            display:"flex",
-                                            flexDirection:"column",
-                                            justifyContent:"flex-end",
-                                            alignItems:"flex-end",
-                                        }}>
-                                            <Typography variant="b16" sx={{ color: "#155DFC" }}>
-                                                ₹{classItem.price.toLocaleString("en-IN")}
-                                            </Typography>
-                                            <Typography variant="r12">
-                                                inc of all taxes
-                                            </Typography>
-                                        </Box>
-                                        </Stack>
-                                        <ViewBundleButton
-                                            variant="contained"
-                                            endIcon={<WhiteRightArrowIcon />}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleClassClick(classItem);
-                                            }}
-                                        >
-                                            View Bundle
-                                        </ViewBundleButton>
-                                    </ClassContent>
-                                </ClassCard>
-                            </Grid>
-                        ))}
-                    </Grid>
 
-                    {/* Show message if no classes found */}
-                    {filteredClasses.length === 0 && (
+                                            <Stack direction="column" spacing={2} justifyContent="space-between" alignItems="left"
+                                                sx={{
+                                                    borderTop: "1px solid #1214191A",
+                                                    paddingTop: "10px",
+                                                }}
+                                            >
+                                                <Typography variant="m16">
+                                                    Select Second Language
+                                                </Typography>
+                                                <Box sx={{
+                                                    display: "flex",
+                                                    flexDirection: "row",
+                                                    gap: "10px",
+                                                    width: "100%",
+                                                    flexWrap: "wrap",
+                                                }}>
+                                                    {classItem.bundles?.map((bundle) => {
+                                                        const isSelectedLang = selectedLanguage === "All Languages" || bundle.language === selectedLanguage;
+                                                        if (!isSelectedLang) return null;
+
+                                                        return (
+                                                            <Button
+                                                                key={bundle.bundle_id}
+                                                                variant="outlined"
+                                                                onClick={() => handleClassClick(classItem, bundle)}
+                                                                sx={{
+                                                                    display: "flex",
+                                                                    alignItems: "flex-start",
+                                                                    flexDirection: "column",
+                                                                    justifyContent: "flex-start",
+                                                                    gap: "05px",
+                                                                    border: "1px solid #D1D4DE",
+                                                                    borderRadius: "10px",
+                                                                    color: "text.primary",
+                                                                    // minWidth: "30%",
+                                                                    // width: "fit-content",
+                                                                    // flex: 1,
+                                                                    "&:hover": {
+                                                                        borderColor: "#2C65F9",
+                                                                        backgroundColor: "#F0F5FF"
+                                                                    }
+                                                                }}
+                                                            >
+                                                                {bundle.language}
+                                                                <Box component={"span"} sx={{
+                                                                    fontWeight: "bold",
+                                                                    color: "#155DFC",
+                                                                }}>
+                                                                    ₹{bundle.total_price?.toLocaleString('en-IN') || 0}
+                                                                </Box>
+                                                            </Button>
+                                                        );
+                                                    })}
+                                                </Box>
+                                            </Stack>
+                                        </ClassContent>
+                                    </ClassCard>
+                                </Grid>
+                            ))}
+                        </Grid>
+                    ) : (
                         <Box
                             sx={{
                                 textAlign: "center",
@@ -598,7 +609,10 @@ const SchoolClasses: React.FC = () => {
                             }}
                         >
                             <Typography variant="h6" sx={{ color: "#6B7280" }}>
-                                No classes found matching your search.
+                                {searchQuery ? "No classes match your search." : "No classes found for this school."}
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: "#9CA3AF", marginTop: "10px" }}>
+                                Please check back later or contact the school administrator.
                             </Typography>
                         </Box>
                     )}

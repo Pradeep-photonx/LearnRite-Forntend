@@ -76,7 +76,7 @@ const CategoriesHeader = styled(Box)({
 const NavigationButtons = styled(Stack)({
   flexDirection: "row",
   gap: "8px",
-  
+
 });
 
 const NavButton = styled(IconButton)<{ active?: boolean }>(() => ({
@@ -370,7 +370,7 @@ const BestCategories: React.FC<BestCategoriesProps> = ({
 
           {/* Best Categories Section */}
           <Box sx={{
-            marginTop: "-90px",
+            marginTop: "-130px",
           }}>
             <CategoriesHeader>
               <Typography
@@ -390,7 +390,7 @@ const BestCategories: React.FC<BestCategoriesProps> = ({
                   active={false}
                   aria-label="Previous categories"
                 >
-                  <WhiteLeftArrowIcon  />
+                  <WhiteLeftArrowIcon />
                 </NavButton>
                 <NavButton
                   onClick={handleNext}
