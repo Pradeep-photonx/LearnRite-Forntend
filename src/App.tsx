@@ -16,11 +16,14 @@ import Layout from "./layouts/Layout";
 
 
 
+import { Toaster } from "react-hot-toast";
+
 function App() {
   return (
     <>
       <ThemeProvider theme={theme}>
         <CssBaseline />
+        <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
         <BrowserRouter>
           <ScrollToTop />
           <Layout>

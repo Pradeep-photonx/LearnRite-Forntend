@@ -122,3 +122,68 @@ export const getSchoolClasses = async (schoolId: number) => {
     const response = await axiosClient.get(`ClassBundle/school/${schoolId}/classes-list`);
     return response.data;
 };
+
+export interface VerificationResponse {
+    success: boolean;
+    message: string;
+    admission: {
+        id: number;
+        school_id: number;
+        admission_id: string;
+        school_no: string | null;
+        student_name: string;
+        class: string;
+        parent_name: string;
+        parent_mobile_number: string;
+        new_admission: boolean;
+        is_active: boolean;
+        createdAt: string;
+        updatedAt: string;
+        class_id: number;
+    };
+}
+
+export const verifyAdmission = async (bundleId: string, admissionId: string) => {
+    const response = await axiosClient.get<VerificationResponse>(`Admission/verify/${bundleId}/${admissionId}`);
+    return response.data;
+};
+
+export interface CreateStudentPayload {
+    admission_id: string;
+    student_name: string;
+    class_id: number;
+    parent_name: string;
+    parent_mobile_number: string;
+    new_admission: boolean;
+}
+
+export interface CreateStudentResponse {
+    success: boolean;
+    message: string;
+    student_id?: number;
+}
+
+export const createStudent = async (schoolId: number, data: CreateStudentPayload) => {
+    const response = await axiosClient.post<CreateStudentResponse>(`Admission/student/create/${schoolId}`, data);
+    return response.data;
+};
+
+export interface AddToCartPayload {
+    cl_id: number;
+    admission_id: string;
+    student_name: string;
+    class_id: number;
+    bundle_products: {
+        product_id: number;
+        quantity: number;
+    }[];
+    products: {
+        product_id: number;
+        quantity: number;
+    }[];
+}
+
+export const addToCart = async (data: AddToCartPayload) => {
+    const response = await axiosClient.post("/Cart/AddToCart", data);
+    return response.data;
+};

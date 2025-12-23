@@ -6,6 +6,6 @@ export interface LoginPayload {
 }
 
 export const login = async (data: LoginPayload) => {
-    const response = await axiosClient.post("/SchoolAdmin/login", data);
+    const response = await axiosClient.post("/User/login", data);
     return response.data;
 };

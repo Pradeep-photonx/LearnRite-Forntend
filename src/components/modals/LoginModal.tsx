@@ -13,6 +13,8 @@ import {
 } from "@mui/material";
 import LoginBannerImage from "../../assets/images/login-bg.png";
 import { CloseIcon } from "../icons/CommonIcons";
+import { login } from "../../api/auth";
+import toast from "react-hot-toast";
 
 // Styled Components
 const StyledDialog = styled(Dialog)(({ theme }) => ({
@@ -158,16 +160,28 @@ const LoginModal: React.FC<LoginModalProps> = ({
   const [phoneEmail, setPhoneEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleLogin = () => {
-    // Handle login logic
-    console.log("Login:", { phoneEmail, password });
-    // Set login state in localStorage
-    localStorage.setItem("isLoggedIn", "true");
-    // Close modal after successful login
-    onClose();
-    // Call onLoginSuccess callback if provided
-    if (onLoginSuccess) {
-      onLoginSuccess();
+  const handleLogin = async () => {
+    try {
+      const response = await login({ email: phoneEmail, password: password });
+
+      if (response && response.token) {
+        // Set login state in localStorage
+        localStorage.setItem("token", response.token);
+        localStorage.setItem("user", JSON.stringify(response.user));
+
+        toast.success("Login successful!");
+        // Close modal after successful login
+        onClose();
+        // Call onLoginSuccess callback if provided
+        if (onLoginSuccess) {
+          onLoginSuccess();
+        }
+      } else {
+        toast.error("Login failed. Please check your credentials.");
+      }
+    } catch (error: any) {
+      console.error("Login error:", error);
+      toast.error(error.response?.data?.message || "Login failed. Please try again.");
     }
   };
 
@@ -189,13 +203,13 @@ const LoginModal: React.FC<LoginModalProps> = ({
       <StyledDialogTitle>
         <Typography variant="sb20">Login</Typography>
         <IconButton onClick={onClose} aria-label="close">
-        <CloseIcon />
+          <CloseIcon />
         </IconButton>
       </StyledDialogTitle>
 
       {/* Content */}
       <StyledDialogContent>
-         <img src={LoginBannerImage} alt="Promotional Banner" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        <img src={LoginBannerImage} alt="Promotional Banner" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
 
         {/* Form Fields */}
         <FormContainer>
@@ -230,7 +244,7 @@ const LoginModal: React.FC<LoginModalProps> = ({
           </FormField>
 
           <LoginButton
-          variant="contained"
+            variant="contained"
             onClick={handleLogin}
             disabled={!phoneEmail.trim() || !password.trim()}
           >

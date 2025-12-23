@@ -118,7 +118,7 @@ const ConfirmButton = styled(Button)({
 export const FormFieldContainer = styled(Box)({
   display: "flex",
   flexDirection: "column",
-  position:"relative",
+  position: "relative",
   gap: "4px",
   marginBottom: "20px",
   "&:last-child": {
@@ -166,10 +166,10 @@ export const VerifyButton = styled(Button)({
   fontWeight: "600 !important",
   color: "#2C55C1 !important",
   fontSize: "16px !important",
-  position:"absolute",
-  right:"20px",
-  top:"43px",
-  zIndex:9,
+  position: "absolute",
+  right: "20px",
+  top: "14px",
+  zIndex: 9,
 
 });
 
@@ -248,7 +248,7 @@ const CommonModal: React.FC<CommonModalProps> = ({
         ) : (
           <Box sx={{
             "& .MuiInputBase-root": {
-              height:"48px",
+              height: "48px",
               "& .MuiInputBase-input::placeholder": {
                 fontWeight: 400,
               },

@@ -364,9 +364,9 @@ const Checkout: React.FC = () => {
                                                     value={address.id}
                                                     sx={{
                                                         color: "#2C65F9",
+                                                        padding: "0",
                                                         "&.Mui-checked": {
                                                             color: "#2C65F9",
-                                                            padding: "0",
                                                         },
                                                     }}
                                                 />

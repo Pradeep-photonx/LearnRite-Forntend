@@ -21,7 +21,7 @@ import {
   Menu as MenuIcon,
   Close,
 } from "@mui/icons-material";
-import { AddToCartIcon,  WishlistIcon } from "../components/icons/CommonIcons";
+import { AddToCartIcon, WishlistIcon } from "../components/icons/CommonIcons";
 import LogoImg from "../assets/images/learnrite-logo.svg";
 import LoginModal from "../components/modals/LoginModal";
 import SignUpModal from "../components/modals/SignUpModal";
@@ -59,6 +59,44 @@ const TopHeader: React.FC = () => {
   const menuOpen = Boolean(menuAnchor);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [signUpModalOpen, setSignUpModalOpen] = useState(false);
+
+  const [user, setUser] = useState<any>(null);
+  const [userMenuAnchor, setUserMenuAnchor] = useState<null | HTMLElement>(null);
+
+  React.useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (e) {
+        console.error("Failed to parse user from local storage", e);
+      }
+    }
+  }, []);
+
+  const handleUserMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setUserMenuAnchor(event.currentTarget);
+  };
+
+  const handleUserMenuClose = () => {
+    setUserMenuAnchor(null);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    setUser(null);
+    handleUserMenuClose();
+    // navigate("/login"); // Optional: if you want to redirect
+  };
+
+  const handleLoginSuccess = () => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+    setLoginModalOpen(false);
+  };
 
   const handleCategoryOpen = (event: React.MouseEvent<HTMLElement>) => {
     setCategoryAnchor(event.currentTarget);
@@ -119,7 +157,7 @@ const TopHeader: React.FC = () => {
               </IconButton>
               <Stack spacing={0.2}>
                 <Button variant="text" onClick={() => navigate("/home")}>
-                <img src={LogoImg} alt="Logo" /> 
+                  <img src={LogoImg} alt="Logo" />
                 </Button>
               </Stack>
             </Stack>
@@ -153,7 +191,7 @@ const TopHeader: React.FC = () => {
                   fontWeight: 500,
                   fontSize: { xs: "14px", md: "16px" },
                   textTransform: "none",
-                  backgroundColor:"unset !important",
+                  backgroundColor: "unset !important",
                   "&:hover": {
                     backgroundColor: "unset !important",
                   },
@@ -202,13 +240,49 @@ const TopHeader: React.FC = () => {
               <IconButton sx={{ color: "#111827", padding: "0px" }} aria-label="cart">
                 <AddToCartIcon />
               </IconButton>
-              <Button
-                variant="contained"
-                onClick={() => setLoginModalOpen(true)}
-              >
-                Sign in / Sign up
-              </Button>
-              </Stack>
+              {user ? (
+                <>
+                  <Button
+                    variant="text"
+                    onClick={handleUserMenuOpen}
+                    endIcon={<KeyboardArrowDown />}
+                    sx={{
+                      color: "#111827",
+                      // textTransform: "none",
+                      fontWeight: 600,
+                      fontSize: "16px",
+                      textTransform: "capitalize",
+                    }}
+                  >
+                    {user.first_name}
+                  </Button>
+                  <Menu
+                    anchorEl={userMenuAnchor}
+                    open={Boolean(userMenuAnchor)}
+                    onClose={handleUserMenuClose}
+                    anchorOrigin={{
+                      vertical: "bottom",
+                      horizontal: "right",
+                    }}
+                    transformOrigin={{
+                      vertical: "top",
+                      horizontal: "right",
+                    }}
+                  >
+                    <MenuItem onClick={handleUserMenuClose}>Profile</MenuItem>
+                    <MenuItem onClick={handleUserMenuClose}>Change Password</MenuItem>
+                    <MenuItem onClick={handleLogout}>Logout</MenuItem>
+                  </Menu>
+                </>
+              ) : (
+                <Button
+                  variant="contained"
+                  onClick={() => setLoginModalOpen(true)}
+                >
+                  Sign in / Sign up
+                </Button>
+              )}
+            </Stack>
           </Stack>
         </Container>
       </Box>
@@ -247,9 +321,9 @@ const TopHeader: React.FC = () => {
                 <ListItem
                   key={`${category}-${index}`}
                   disablePadding
-                  // sx={{
-                  //   borderBottom: "1px solid #F3F4F6",
-                  // }}
+                // sx={{
+                //   borderBottom: "1px solid #F3F4F6",
+                // }}
                 >
                   <ListItemButton
                     onClick={() => handleMenuCategorySelect(category)}
@@ -286,6 +360,7 @@ const TopHeader: React.FC = () => {
       <LoginModal
         open={loginModalOpen}
         onClose={() => setLoginModalOpen(false)}
+        onLoginSuccess={handleLoginSuccess}
         onSignUpClick={() => {
           setLoginModalOpen(false);
           setSignUpModalOpen(true);

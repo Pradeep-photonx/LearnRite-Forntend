@@ -13,14 +13,24 @@ import {
   Stack,
   CircularProgress,
   Checkbox,
+  FormControlLabel,
 } from "@mui/material";
 import { ExpandMore, KeyboardArrowUp } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router-dom";
 import theme from "../../Theme";
-import CommonModal from "../../components/modals/StudentVerifyModal";
-import type { FormField } from "../../components/modals/StudentVerifyModal";
+import CommonModal, {
+  FormFieldContainer,
+  FormLabel,
+  StyledTextField,
+  VerifyButton
+} from "../../components/modals/StudentVerifyModal";
+
 import { useBundleDetail } from "../../api/useBundleDetail";
+import { verifyAdmission, createStudent, addToCart } from "../../api/bundle";
+import type { CreateStudentPayload, AddToCartPayload } from "../../api/bundle";
 import type { School } from "../../api/school";
+import toast from "react-hot-toast";
+import LoginModal from "../../components/modals/LoginModal";
 
 // Styled Components
 const BundleContainer = styled(Box)(() => ({
@@ -57,19 +67,7 @@ const SchoolName = styled(Typography)({
   color: "#445061",
 });
 
-const LanguageSection = styled(Box)({
-  display: "flex",
-  flexDirection: "column",
-  justifyContent: "left",
-  alignItems: "left",
-  gap: "05px",
-});
 
-const LanguageLabel = styled(Typography)({
-  // marginBottom: "16px",
-  fontWeight: 600,
-  color: "#121318",
-});
 
 const SectionTitle = styled(Box)({
   display: "flex",
@@ -225,36 +223,189 @@ const BundleDetails: React.FC = () => {
   const [classGrade, setClassGrade] = useState("");
   const [schoolName, setSchoolName] = useState("");
 
+  // New Admission State
+  const [isNewAdmission, setIsNewAdmission] = useState(false);
+  const [parentName, setParentName] = useState("");
+  const [parentMobile, setParentMobile] = useState("");
+
+  const [isVerificationSuccessful, setIsVerificationSuccessful] = useState(false);
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
+
   const handleAddToCart = () => {
     // Open verify student modal before adding to cart
     setVerifyStudentModalOpen(true);
   };
 
-  const handleVerifyAdmission = () => {
-    // Handle verify admission number logic
-    console.log("Verifying admission number:", admissionNumber);
-    // After verification, you can auto-fill other fields if needed
+  const handleVerifyAdmission = async () => {
+    if (!admissionNumber.trim()) {
+      toast.error("Please enter an admission number");
+      return;
+    }
+
+    if (!bundle?.bundle_id) {
+      toast.error("Bundle information missing");
+      return;
+    }
+
+    try {
+      const response = await verifyAdmission(bundle.bundle_id, admissionNumber);
+
+      if (response.success && response.admission) {
+        setStudentName(response.admission.student_name);
+        setClassGrade(response.admission.class);
+        // If the API confirms the student belongs to the school, use the bundle's school name or admission school_id mapping
+        // Using bundle's school name as it's the context we are in
+        setSchoolName(bundle.school?.name || "");
+        setIsVerificationSuccessful(true);
+        toast.success(response.message || "Student verified successfully");
+      } else {
+        setIsVerificationSuccessful(false);
+        toast.error(response.message || "Verification failed");
+      }
+    } catch (error: any) {
+      console.error("Verification error:", error);
+      setIsVerificationSuccessful(false);
+      let errorMessage = error.response?.data?.message || error.message || "Verification failed";
+
+      if (error.response?.status === 404) {
+        errorMessage = "Admission number not found for this school";
+      }
+
+      toast.error(errorMessage);
+    }
   };
 
-  const handleConfirmAndAddToCart = () => {
-    // Handle confirm and add to cart logic
-    console.log("Confirm and add to cart", {
-      admissionNumber,
-      studentName,
-      classGrade,
-      schoolName,
-      bundle,
-      selectedOptionalProductIds
-    });
-    // Close modal after confirmation
-    setVerifyStudentModalOpen(false);
-    // Reset form
-    setAdmissionNumber("");
-    setStudentName("");
-    setClassGrade("");
-    setSchoolName("");
-    // Navigate to cart page
-    navigate("/cart");
+  const handleConfirmAndAddToCart = async () => {
+    if (isNewAdmission) {
+      if (!bundle?.school_id || !bundle?.class_id) {
+        toast.error("Bundle information missing");
+        return;
+      }
+      if (!studentName.trim() || !parentName.trim() || !parentMobile.trim() || !admissionNumber.trim()) {
+        toast.error("Please fill all required fields");
+        return;
+      }
+
+      if (!/^\d{10}$/.test(parentMobile.trim())) {
+        toast.error("Please enter a valid 10-digit mobile number");
+        return;
+      }
+
+      const payload: CreateStudentPayload = {
+        admission_id: admissionNumber,
+        student_name: studentName,
+        class_id: bundle.class_id,
+        parent_name: parentName,
+        parent_mobile_number: parentMobile,
+        new_admission: true
+      };
+
+      try {
+        const response = await createStudent(bundle.school_id, payload);
+        if (response.success || response.student_id || response.message?.toLowerCase().includes("success")) {
+          toast.success(response.message || "Student created successfully. Please verify to proceed.");
+          setIsNewAdmission(false);
+          // Clear details to force re-verification
+          setStudentName("");
+          setClassGrade("");
+          setSchoolName("");
+          setParentName("");
+          setParentMobile("");
+        } else {
+          if (response.message?.toLowerCase().includes("already exists") || response.message?.toLowerCase().includes("duplicate")) {
+            toast.error("An admission with this admission ID already exists.");
+          } else {
+            toast.error(response.message || "Failed to create student");
+          }
+        }
+      } catch (err: any) {
+        console.error("Create student error object:", err);
+        console.error("Create student response data:", err.response?.data);
+
+        // Extract possible error message from various common locations
+        const errorData = err.response?.data;
+        const errorMessage =
+          errorData?.message ||
+          errorData?.error ||
+          (typeof errorData === 'string' ? errorData : "") ||
+          err.message ||
+          "Failed to create student";
+
+        const status = err.response?.status;
+        const lowerCaseMsg = errorMessage.toLowerCase();
+
+        if (
+          status === 409 ||
+          lowerCaseMsg.includes("already exists") ||
+          lowerCaseMsg.includes("duplicate") ||
+          lowerCaseMsg.includes("unique constrain")
+        ) {
+          toast.error("An admission with this admission ID already exists.");
+        } else {
+          toast.error(errorMessage);
+        }
+      }
+    } else {
+      // Existing verified flow
+      // Handle confirm and add to cart logic
+
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        setLoginModalOpen(true);
+        return;
+      }
+
+      if (!bundle) return;
+
+      const addToCartPayload: AddToCartPayload = {
+        cl_id: Number(bundle.bundle_id),
+        admission_id: admissionNumber,
+        student_name: studentName,
+        class_id: bundle.class_id,
+        // Mandatory products
+        bundle_products: mandatoryProducts.map(p => ({
+          product_id: p.product_id,
+          quantity: p.quantity,
+        })),
+        // Optional products
+        products: optionalProducts
+          .filter(p => selectedOptionalProductIds.includes(p.product_id))
+          .map(p => ({
+            product_id: p.product_id,
+            quantity: p.quantity,
+          })),
+      };
+
+      try {
+        const response = await addToCart(addToCartPayload);
+        if (response.success || response.cart_id || response.message?.toLowerCase().includes("success")) {
+          toast.success(response.message || "Added to cart successfully");
+          setVerifyStudentModalOpen(false);
+          // Reset form
+          setAdmissionNumber("");
+          setStudentName("");
+          setClassGrade("");
+          setSchoolName("");
+          setIsVerificationSuccessful(false);
+          navigate("/cart");
+        } else {
+          toast.error(response.message || "Failed to add to cart");
+        }
+      } catch (error: any) {
+        console.error("Add to cart error:", error);
+        toast.error(error.response?.data?.message || "Failed to add to cart");
+      }
+    }
+  };
+
+  const handleLoginSuccess = () => {
+    setLoginModalOpen(false);
+    // Optionally retry add to cart automatically, or let user click again.
+    // User requested "come back to cart page and will go for next step"
+    // Since we are in a modal, user is still on the page. They can just click "Confirm" again.
+    // Or we can auto-trigger. Let's auto-trigger for better UX.
+    handleConfirmAndAddToCart();
   };
 
   const handleCloseModal = () => {
@@ -264,52 +415,13 @@ const BundleDetails: React.FC = () => {
     setStudentName("");
     setClassGrade("");
     setSchoolName("");
+    setIsNewAdmission(false);
+    setParentName("");
+    setParentMobile("");
+    setIsVerificationSuccessful(false);
   };
 
-  // Form fields configuration for Verify Student Modal
-  const verifyStudentFormFields: FormField[] = [
-    {
-      id: "admissionNumber",
-      label: "Admission Number",
-      placeholder: "Enter Admission Number",
-      type: "text",
-      required: true,
-      value: admissionNumber,
-      onChange: setAdmissionNumber,
-      verifyButton: {
-        label: "Verify",
-        onClick: handleVerifyAdmission,
-        disabled: !admissionNumber.trim(),
-      },
-    },
-    {
-      id: "studentName",
-      label: "Student Name",
-      placeholder: "Enter Student Name",
-      type: "text",
-      required: true,
-      value: studentName,
-      onChange: setStudentName,
-    },
-    {
-      id: "classGrade",
-      label: "Class / Grade",
-      placeholder: "Enter Class / Grade",
-      type: "text",
-      required: true,
-      value: classGrade,
-      onChange: setClassGrade,
-    },
-    {
-      id: "schoolName",
-      label: "School Name",
-      placeholder: "Enter School Name",
-      type: "text",
-      required: true,
-      value: schoolName,
-      onChange: setSchoolName,
-    },
-  ];
+
 
   return (
     <Container maxWidth="xl">
@@ -628,18 +740,186 @@ const BundleDetails: React.FC = () => {
         open={verifyStudentModalOpen}
         onClose={handleCloseModal}
         title="Verify Student"
-        formFields={verifyStudentFormFields}
         cancelButtonText="Cancel"
-        confirmButtonText="Confirm & Add to Cart"
+        confirmButtonText={isNewAdmission ? "Create Admission" : "Confirm & Add to Cart"}
         onConfirm={handleConfirmAndAddToCart}
         confirmButtonDisabled={
-          !admissionNumber.trim() ||
-          !studentName.trim() ||
-          !classGrade.trim() ||
-          !schoolName.trim()
+          isNewAdmission
+            ? (!admissionNumber.trim() || !studentName.trim() || !parentName.trim() || !parentMobile.trim())
+            : (!admissionNumber.trim() || !studentName.trim() || !classGrade.trim() || !schoolName.trim())
         }
+      >
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.2 }}>
+          {!isNewAdmission ? (
+            // Existing Verification field
+            <>
+              {!isVerificationSuccessful && (
+                <FormControlLabel sx={{
+                  padding: "0px 0px 14px 0px",
+                }}
+                  control={
+                    <Checkbox sx={{
+                      padding: "0px 10px 0px 15px",
+                    }}
+                      checked={isNewAdmission}
+                      onChange={(e) => {
+                        setIsNewAdmission(e.target.checked);
+                        if (e.target.checked) {
+                          setStudentName("");
+                          setClassGrade(bundle?.class?.name || "");
+                          setSchoolName(bundle?.school?.name || "");
+                          setParentName("");
+                          setParentMobile("");
+                        } else {
+                          setStudentName("");
+                          setClassGrade("");
+                          setSchoolName("");
+                        }
+                      }}
+                    />
+                  }
+                  label="New Admission"
+                />
+              )}
+
+              <FormFieldContainer>
+                <FormLabel>Admission Number</FormLabel>
+                <Box sx={{ display: "flex", gap: "12px", alignItems: "flex-start", position: "relative" }}>
+                  <StyledTextField
+                    placeholder="Enter Admission Number"
+                    value={admissionNumber}
+                    onChange={(e) => setAdmissionNumber(e.target.value)}
+                    fullWidth
+                    variant="outlined"
+                  />
+                  <VerifyButton
+                    onClick={handleVerifyAdmission}
+                    disabled={!admissionNumber.trim()}
+                  >
+                    Verify
+                  </VerifyButton>
+                </Box>
+              </FormFieldContainer>
+            </>
+          ) : (
+            // New Admission Fields
+            <>
+              <FormControlLabel sx={{
+                padding: "0px 0px 14px 0px",
+              }}
+                control={
+                  <Checkbox sx={{
+                    padding: "0px 10px 0px 15px",
+                  }}
+                    checked={isNewAdmission}
+                    onChange={(e) => {
+                      setIsNewAdmission(e.target.checked);
+                      if (e.target.checked) {
+                        setStudentName("");
+                        setClassGrade(bundle?.class?.name || "");
+                        setSchoolName(bundle?.school?.name || "");
+                        setParentName("");
+                        setParentMobile("");
+                      } else {
+                        setStudentName("");
+                        setClassGrade("");
+                        setSchoolName("");
+                      }
+                    }}
+                  />
+                }
+                label="New Admission"
+              />
+
+              <FormFieldContainer>
+                <FormLabel>Admission Number</FormLabel>
+                <StyledTextField
+                  placeholder="Enter Admission Number"
+                  value={admissionNumber}
+                  onChange={(e) => setAdmissionNumber(e.target.value)}
+                  fullWidth
+                />
+              </FormFieldContainer>
+
+              <FormFieldContainer>
+                <FormLabel>Student Name</FormLabel>
+                <StyledTextField
+                  placeholder="Enter Student Name"
+                  value={studentName}
+                  onChange={(e) => setStudentName(e.target.value)}
+                  fullWidth
+                />
+              </FormFieldContainer>
+              <FormFieldContainer>
+                <FormLabel>Class</FormLabel>
+                <StyledTextField
+                  value={bundle?.class?.name || classGrade} // Show bundle class
+                  disabled
+                  fullWidth
+                />
+              </FormFieldContainer>
+              <FormFieldContainer>
+                <FormLabel>Parent Name</FormLabel>
+                <StyledTextField
+                  placeholder="Enter Parent Name"
+                  value={parentName}
+                  onChange={(e) => setParentName(e.target.value)}
+                  fullWidth
+                />
+              </FormFieldContainer>
+              <FormFieldContainer>
+                <FormLabel>Parent Mobile Number</FormLabel>
+                <StyledTextField
+                  placeholder="Enter Parent Mobile Number"
+                  value={parentMobile}
+                  onChange={(e) => setParentMobile(e.target.value)}
+                  fullWidth
+                />
+              </FormFieldContainer>
+            </>
+          )}
+
+          {/* Read-only fields for Verification Mode */}
+          {!isNewAdmission && (
+            <>
+              <FormFieldContainer>
+                <FormLabel>Student Name</FormLabel>
+                <StyledTextField
+                  value={studentName}
+                  disabled
+                  fullWidth
+                  placeholder="Auto-filled after verification"
+                />
+              </FormFieldContainer>
+              <FormFieldContainer>
+                <FormLabel>Class / Grade</FormLabel>
+                <StyledTextField
+                  value={classGrade}
+                  disabled
+                  fullWidth
+                  placeholder="Auto-filled after verification"
+                />
+              </FormFieldContainer>
+              <FormFieldContainer>
+                <FormLabel>School Name</FormLabel>
+                <StyledTextField
+                  value={schoolName}
+                  disabled
+                  fullWidth
+                  placeholder="Auto-filled after verification"
+                />
+              </FormFieldContainer>
+            </>
+          )}
+        </Box>
+      </CommonModal>
+
+      <LoginModal
+        open={loginModalOpen}
+        onClose={() => setLoginModalOpen(false)}
+        onLoginSuccess={handleLoginSuccess}
       />
-    </Container>
+    </Container >
   );
 };
 

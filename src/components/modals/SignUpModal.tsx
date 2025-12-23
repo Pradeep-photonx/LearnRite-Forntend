@@ -169,7 +169,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
   };
 
   return (
-    <StyledDialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <StyledDialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       {/* Header */}
       <StyledDialogTitle>
         <Typography variant="sb20">Sign Up</Typography>
@@ -185,13 +185,13 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
         <FormContainer>
           <FormField>
             <FormLabel>
-              Parents Name{" "}
+              First Name{" "}
               <Typography component="span" sx={{ color: "#EF4444" }}>
                 *
               </Typography>
             </FormLabel>
             <StyledTextField
-              placeholder="Enter parents name"
+              placeholder="Enter first name"
               value={parentsName}
               onChange={(e) => setParentsName(e.target.value)}
               variant="outlined"
@@ -201,13 +201,13 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
 
           <FormField>
             <FormLabel>
-              Mobile number{" "}
+              Last Name{" "}
               <Typography component="span" sx={{ color: "#EF4444" }}>
                 *
               </Typography>
             </FormLabel>
             <StyledTextField
-              placeholder="+91 9876543210"
+              placeholder="Enter last name"
               value={mobileNumber}
               onChange={(e) => setMobileNumber(e.target.value)}
               variant="outlined"
@@ -230,6 +230,23 @@ const SignUpModal: React.FC<SignUpModalProps> = ({
               variant="outlined"
               fullWidth
               type="email"
+            />
+          </FormField>
+
+          <FormField>
+            <FormLabel>
+              Mobile Number{" "}
+              <Typography component="span" sx={{ color: "#EF4444" }}>
+                *
+              </Typography>
+            </FormLabel>
+            <StyledTextField
+              placeholder="Enter mobile number"
+              value={mobileNumber}
+              onChange={(e) => setMobileNumber(e.target.value)}
+              variant="outlined"
+              fullWidth
+              type="tel"
             />
           </FormField>
 
