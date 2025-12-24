@@ -91,8 +91,25 @@ export const deleteSubCategory = async (id: number) => {
     const response = await axiosClient.delete(`/SubCategory/delete/${id}`);
     return response.data;
 };
+export interface PublicSubCategory {
+    sub_category_id: number;
+    category_id: number;
+    name: string;
+    is_active: boolean;
+}
 
+export interface PublicCategory {
+    category_id: number;
+    name: string;
+    image: string | null;
+    is_active: boolean;
+    visibility: boolean;
+    createdAt: string;
+    updatedAt: string;
+    SubCategories: PublicSubCategory[];
+}
 
-
-
-
+export const getPublicCategoryList = async () => {
+    const response = await axiosClient.get<PublicCategory[]>("/Category/public/list");
+    return response.data;
+};

@@ -120,7 +120,7 @@ export const FormFieldContainer = styled(Box)({
   flexDirection: "column",
   position: "relative",
   gap: "4px",
-  marginBottom: "20px",
+  marginBottom: "12px",
   "&:last-child": {
     marginBottom: 0,
   },

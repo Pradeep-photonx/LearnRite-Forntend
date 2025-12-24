@@ -778,7 +778,7 @@ const ProductListing: React.FC = () => {
                         <AddToCartButton
                           variant="contained"
                           startIcon={<AddToCartWhiteIcon />}
-                          onClick={() => navigate(`/categories/${product.slug}`)}
+                          onClick={() => navigate(`/product/${product.id}`)}
                         >
                           Add to Cart
                         </AddToCartButton>

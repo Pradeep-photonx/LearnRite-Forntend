@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Container,
@@ -7,22 +7,25 @@ import {
   Button,
   IconButton,
   Paper,
-  Link,
   styled,
+  CircularProgress,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import {
   Favorite,
   FavoriteBorder,
 } from "@mui/icons-material";
-import { useParams, useNavigate } from "react-router-dom";
-import { AddToCartWhiteIcon, PrimaryRightArrowIcon} from "../../components/icons/CommonIcons";
-import ProductImag1 from "../../assets/images/product-image.png";
+import { useNavigate, useParams } from "react-router-dom";
+import { PrimaryRightArrowIcon, AddToCartWhiteIcon } from "../../components/icons/CommonIcons";
+import { getProductDetails } from "../../api/product";
+import type { PublicProduct } from "../../api/product";
+import { addToCart } from "../../api/cart";
+import { toast } from "react-hot-toast";
+import { usePublicProducts } from "../../api/usePublicProducts";
 
 // Styled Components
 const PageContainer = styled(Box)({
   padding: "40px 0 80px 0",
-  // backgroundColor: "#FFFFFF",
   minHeight: "60vh",
 });
 
@@ -30,6 +33,9 @@ const ImageGalleryContainer = styled(Box)({
   display: "flex",
   gap: "16px",
   height: "100%",
+  "@media (max-width: 900px)": {
+    flexDirection: "column-reverse",
+  }
 });
 
 const ThumbnailContainer = styled(Box)({
@@ -37,23 +43,28 @@ const ThumbnailContainer = styled(Box)({
   flexDirection: "column",
   gap: "12px",
   width: "80px",
+  "@media (max-width: 900px)": {
+    flexDirection: "row",
+    width: "100%",
+    justifyContent: "center",
+  }
 });
 
 const Thumbnail = styled(Box)<{ active?: boolean }>(({ active }) => ({
   width: "80px",
   height: "80px",
-  // borderRadius: "8px",
-  border: active ? "1px solid #2C65F9" : "1px solid #FFF",
+  border: active ? "1px solid #2C65F9" : "1px solid #BFC2C833",
   overflow: "hidden",
   cursor: "pointer",
   backgroundColor: "#FFF !important",
-  boxShadow: "0px 0px 16px 0px #BFC2C833",
+  boxShadow: "0px 0px 8px 0px #BFC2C81A",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
+  padding: "4px",
   "& img": {
-    width: "60px",
-    height: "60px",
+    width: "100%",
+    height: "100%",
     objectFit: "contain",
   },
   "&:hover": {
@@ -67,12 +78,11 @@ const MainImageContainer = styled(Box)({
   borderRadius: "8px",
   overflow: "hidden",
   backgroundColor: "#FFF",
-  minHeight: "100%",
+  minHeight: "450px",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
   boxShadow: "0px 0px 16px 0px #BFC2C833",
-
 });
 
 const MainImage = styled("img")({
@@ -80,6 +90,7 @@ const MainImage = styled("img")({
   height: "100%",
   objectFit: "contain",
   maxHeight: "412px",
+  padding: "20px",
 });
 
 const CarouselButton = styled(IconButton)({
@@ -90,54 +101,52 @@ const CarouselButton = styled(IconButton)({
   width: "40px",
   height: "40px",
   borderRadius: "50%",
+  border: "1px solid #2C65F9",
   "&:hover": {
     backgroundColor: "rgba(255, 255, 255, 1)",
-  },
-  "&.Mui-disabled": {
-    opacity: 0.5,
   },
 });
 
 const ProductInfoCard = styled(Paper)({
-  padding: "24px",
+  padding: "0px 24px",
   borderRadius: "12px",
   boxShadow: "none",
-  backgroundColor: "unset !important",
-  // border: "1px solid #E5E7EB",
+  backgroundColor: "transparent !important",
 });
-
-
 
 const PriceSection = styled(Stack)({
   flexDirection: "row",
   alignItems: "center",
-  gap: "10px",
+  gap: "12px",
   flexWrap: "wrap",
+  marginTop: "16px",
 });
 
-
 const DescriptionText = styled(Typography)({
-  fontSize: "14px",
-  color: "#6B7280",
+  fontSize: "15px",
+  color: "#4B5563",
   lineHeight: "1.6",
-  marginBottom: "16px",
+  marginTop: "16px",
 });
 
 const ActionButtons = styled(Stack)({
-  flexDirection: "column",
-  gap: "12px",
-  marginBottom: "24px",
+  flexDirection: "row",
+  gap: "16px",
+  margin: "32px 0",
+  "@media (max-width: 600px)": {
+    flexDirection: "column",
+  }
 });
 
 const OutlinedButton = styled(Button)({
   flex: 1,
-  padding: "12px 24px",
+  padding: "14px 24px",
   borderRadius: "50px",
   border: "1px solid #2C65F9",
   color: "#2C65F9",
   textTransform: "none",
   fontSize: "16px",
-  fontWeight: 500,
+  fontWeight: 600,
   "&:hover": {
     borderColor: "#2C55C1",
     backgroundColor: "rgba(44, 101, 249, 0.05)",
@@ -146,78 +155,38 @@ const OutlinedButton = styled(Button)({
 
 const FilledButton = styled(Button)({
   flex: 1,
-  padding: "12px 24px",
+  padding: "14px 24px",
   borderRadius: "50px",
   background: "linear-gradient(98.42deg, #2C65F9 10.23%, #2C55C1 80.76%)",
   color: "#FFFFFF",
   textTransform: "none",
   fontSize: "16px",
-  fontWeight: 500,
-  // boxShadow: "0px 5px 10px 0px #2D60E745",
+  fontWeight: 600,
   "&:hover": {
-    background: "linear-gradient(98.42deg, #2C65F9 10.23%, #2C55C1 80.76%)",
+    background: "linear-gradient(98.42deg, #2C65F9 20%, #2C55C1 90%)",
     boxShadow: "0px 5px 15px 0px #2D60E745",
   },
 });
 
 const HighlightsSection = styled(Box)({
-  marginTop: "24px",
-  display: "flex",
-  flexDirection: "column",
-  gap: "10px",
+  marginTop: "32px",
+  borderTop: "1px solid #E5E7EB",
+  paddingTop: "24px",
 });
 
 const HighlightRow = styled(Box)({
   display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  width: "30%",
-});
-
-
-const SectionTitle = styled(Typography)({
-  fontSize: "24px",
-  fontWeight: 600,
-  color: "#121318",
-  fontFamily: "Figtree, sans-serif",
-  marginBottom: "8px",
-});
-
-const SectionSubtitle = styled(Typography)({
-  fontSize: "14px",
-  color: "#6B7280",
-  marginBottom: "32px",
-});
-
-const ProductCard = styled(Box)({
-  backgroundColor: "#FFFFFF",
-  borderRadius: "12px",
-  overflow: "hidden",
-  border: "1px solid #1214191A",
-  cursor: "pointer",
-  position: "relative",
-  transition: "all 0.3s ease",
-  "&:hover": {
-    boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.1)",
+  marginBottom: "12px",
+  "& .label": {
+    width: "150px",
+    color: "#6B7280",
+    fontSize: "14px",
   },
-});
-
-const ProductImageContainer = styled(Box)({
-  position: "relative",
-  width: "100%",
-  height: "200px",
-  overflow: "hidden",
-  backgroundColor: "#F9F9F9",
-  padding: "12px",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-});
-
-const ProductImage = styled("img")({
-  width: "140px",
-  height: "170px",
-  objectFit: "contain",
+  "& .value": {
+    color: "#111827",
+    fontSize: "14px",
+    fontWeight: 500,
+  },
 });
 
 const BestSaleTag = styled(Box)({
@@ -233,11 +202,49 @@ const BestSaleTag = styled(Box)({
   zIndex: 2,
 });
 
-const ProductInfo = styled(Box)({
+const RelatedSection = styled(Box)({
+  marginTop: "80px",
+  paddingTop: "60px",
+  borderTop: "1px solid #E5E7EB",
+});
+
+const RelatedProductCard = styled(Box)(() => ({
+  backgroundColor: "#FFFFFF",
+  borderRadius: "12px",
+  overflow: "hidden",
+  transition: "all 0.3s ease-in-out",
+  border: "1px solid #1214191A",
+  cursor: "pointer",
+  position: "relative",
+  height: "100%",
+  "&:hover": {
+    boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.1)",
+    "& .ProductImage": {
+      transform: "scale(1.02)",
+    }
+  },
+}));
+
+const RelatedProductImageContainer = styled(Box)({
+  position: "relative",
+  width: "100%",
+  height: "200px",
+  overflow: "hidden",
+  backgroundColor: "#F9F9F9",
+});
+
+const RelatedProductImage = styled("img")({
+  width: "100%",
+  height: "100%",
+  objectFit: "cover",
+  transition: "transform 0.3s ease",
+});
+
+const RelatedProductInfo = styled(Box)({
   padding: "16px",
 });
 
-const PriceSectionSmall = styled(Stack)({
+const RelatedPriceSection = styled(Stack)({
   flexDirection: "row",
   alignItems: "center",
   gap: "8px",
@@ -245,210 +252,251 @@ const PriceSectionSmall = styled(Stack)({
   flexWrap: "wrap",
 });
 
-const AddToCartButton = styled(Button)({
+const SmallAddToCartButton = styled(Button)(({ theme }) => ({
   width: "100%",
-  padding: "10px",
+  padding: "8px",
   borderRadius: "8px",
   textTransform: "none",
-  fontSize: "14px",
-  fontWeight: 500,
-  background: "linear-gradient(98.42deg, #2C65F9 10.23%, #2C55C1 80.76%)",
+  fontSize: "13px",
+  fontWeight: 600,
+  backgroundColor: theme.palette.primary.main,
   color: "#FFFFFF",
-  boxShadow: "0px 5px 10px 0px #2D60E745",
   "&:hover": {
-    background: "linear-gradient(98.42deg, #2C65F9 10.23%, #2C55C1 80.76%)",
-    boxShadow: "0px 5px 15px 0px #2D60E745",
+    backgroundColor: theme.palette.primary.main,
+    opacity: 0.9,
   },
-});
-
-// Sample Data
-const productImages = [
-  ProductImag1,
-  ProductImag1,
-  ProductImag1,
-  ProductImag1,
-];
-
-const relatedProducts = [
-  {
-    id: 1,
-    name: "Classmate Single Line Long Notebook",
-    brand: "CLASSMATE",
-    image: ProductImag1,
-    unit: "1 Unit (1 pieces)",
-    currentPrice: 50,
-    originalPrice: 55,
-    discount: 5,
-    isBestSale: true,
-  },
-  {
-    id: 2,
-    name: "Bullet Mini Ball Pen Submarine 5 Colour Pack",
-    brand: "SUBMARINE",
-    image: ProductImag1,
-    unit: "1 Unit (5 pieces)",
-    currentPrice: 500,
-    originalPrice: 550,
-    discount: 5,
-    isBestSale: true,
-  },
-  {
-    id: 3,
-    name: "Classmate Single Line Long Notebook",
-    brand: "CLASSMATE",
-    image: ProductImag1,
-    unit: "1 Unit (1 pieces)",
-    currentPrice: 50,
-    originalPrice: 55,
-    discount: 5,
-    isBestSale: true,
-  },
-  {
-    id: 4,
-    name: "Brustro Mechanical Pencil with Eraser 0.5mm",
-    brand: "BRUSTRO",
-    image: ProductImag1,
-    unit: "1 Unit (20 pieces)",
-    currentPrice: 50,
-    originalPrice: 55,
-    discount: 5,
-    isBestSale: true,
-  },
-];
-
-// Helper function to convert slug to display name
-const slugToName = (slug: string | undefined): string => {
-  if (!slug) return "Classmate Long Book";
-  return slug
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-};
-
-// Helper function to get product data by slug
-const getProductData = (productSlug: string | undefined) => {
-  // In real app, this would be fetched from API based on slug
-  // For now, return default product data
-  return {
-    id: productSlug || "classmate-long-book",
-    name: "Classmate Long Book - Single Line, 140 Pages, 297 mm x 210 mm - Pack Of 3",
-    slug: productSlug || "classmate-long-book",
-    brand: "CLASSMATE",
-    currentPrice: 180,
-    originalPrice: 220,
-    discount: 25,
-    stock: 5,
-    description: "The cover design of the notebook is subject to change, it depends on stock availability. Pack Of 3 - Single Line Long Book",
-    fullDescription: "The cover design of the notebook is subject to change, it depends on stock availability. Pack Of 3 - Single Line Long Book. This high-quality notebook features ruled pages perfect for writing, note-taking, and school work. Made with premium paper that prevents ink bleeding.",
-    highlights: {
-      brand: "Classmate",
-      color: "Multi",
-      sheetSize: "297 x 210",
-      coverMaterial: "Paper",
-    },
-  };
-};
+}));
 
 const ProductDetails: React.FC = () => {
-  const { productSlug } = useParams<{ productSlug: string }>();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [product, setProduct] = useState<PublicProduct | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [showFullDescription, setShowFullDescription] = useState(false);
+  const [addingToCart, setAddingToCart] = useState(false);
 
-  const product = getProductData(productSlug);
+  // Fetch related products
+  const { products: fetchedRelated, loading: relatedLoading } = usePublicProducts();
+
+  useEffect(() => {
+    // Reset view when ID changes (important for "You May Also Like" clicks)
+    window.scrollTo(0, 0);
+    setSelectedImageIndex(0);
+    setShowFullDescription(false);
+
+    const fetchProductDetails = async () => {
+      if (!id) return;
+      try {
+        setLoading(true);
+        const data = await getProductDetails(id);
+        const productData = data.Category?.SubCategory?.Product;
+
+        if (productData) {
+          setProduct({
+            ...productData,
+            Category: {
+              category_id: data.Category.category_id,
+              name: data.Category.name,
+              image: data.Category.image,
+              is_active: data.Category.is_active,
+              visibility: data.Category.visibility
+            },
+            SubCategory: {
+              sub_category_id: data.Category.SubCategory.sub_category_id,
+              category_id: data.Category.SubCategory.category_id,
+              name: data.Category.SubCategory.name,
+              is_active: data.Category.SubCategory.is_active
+            }
+          });
+        }
+        setLoading(false);
+      } catch (err: any) {
+        console.error("Error fetching product details:", err);
+        setError(err.message || "Failed to load product details");
+        setLoading(false);
+      }
+    };
+
+    fetchProductDetails();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error || !product) {
+    return (
+      <Box sx={{ textAlign: "center", py: 10 }}>
+        <Typography variant="h5" color="error" gutterBottom>
+          {error || "Product not found"}
+        </Typography>
+        <Button variant="contained" onClick={() => navigate("/home")} sx={{ mt: 2 }}>
+          Back to Home
+        </Button>
+      </Box>
+    );
+  }
+
+  // Handle Images
+  const allImages: string[] = [];
+  if (product.image1) allImages.push(product.image1);
+  if (product.image2) allImages.push(product.image2);
+  if (product.image3) allImages.push(product.image3);
+  if (product.image4) allImages.push(product.image4);
+
+  if (product.images && Array.isArray(product.images)) {
+    product.images.forEach(img => {
+      if (img && !allImages.includes(img)) allImages.push(img);
+    });
+  }
+
+  if (product.image) {
+    try {
+      const parsed = JSON.parse(product.image);
+      if (Array.isArray(parsed)) {
+        parsed.forEach(img => {
+          if (img && !allImages.includes(img)) allImages.push(img);
+        });
+      } else if (typeof parsed === 'string' && !allImages.includes(parsed)) {
+        allImages.push(parsed);
+      }
+    } catch (e) {
+      if (!allImages.includes(product.image)) allImages.push(product.image);
+    }
+  }
+
+  if (allImages.length === 0) {
+    allImages.push("/api/placeholder/400/400");
+  }
 
   const handlePreviousImage = () => {
-    setSelectedImageIndex((prev) => (prev > 0 ? prev - 1 : productImages.length - 1));
+    setSelectedImageIndex((prev) => (prev > 0 ? prev - 1 : allImages.length - 1));
   };
 
   const handleNextImage = () => {
-    setSelectedImageIndex((prev) => (prev < productImages.length - 1 ? prev + 1 : 0));
+    setSelectedImageIndex((prev) => (prev < allImages.length - 1 ? prev + 1 : 0));
   };
 
-  const handleAddToCart = () => {
-    // Handle add to cart logic
-    console.log("Added to cart:", product);
+  const onAddToCart = async () => {
+    try {
+      setAddingToCart(true);
+      await addToCart({
+        products: [{
+          product_id: product.product_id,
+          quantity: 1,
+        }],
+        bundle_products: [],
+        cl_id: null,
+        admission_id: null,
+        student_name: null,
+        class_id: null
+      });
+      toast.success("Added to cart successfully!");
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to add to cart");
+    } finally {
+      setAddingToCart(false);
+    }
   };
 
-  const handleBuyNow = () => {
-    // Handle buy now logic
-    handleAddToCart();
-    navigate("/checkout");
+  const handleBuyNow = async () => {
+    await onAddToCart();
+    navigate("/cart");
   };
+
+  const handleRelatedAddToCart = async (e: React.MouseEvent, productId: number) => {
+    e.stopPropagation();
+    try {
+      await addToCart({
+        products: [{
+          product_id: productId,
+          quantity: 1,
+        }],
+        bundle_products: [],
+        cl_id: null,
+        admission_id: null,
+        student_name: null,
+        class_id: null
+      });
+      toast.success("Added to cart successfully!");
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to add to cart");
+    }
+  };
+
+  // Filter out the current product from related items and limit to 4
+  const relatedDisplay = (fetchedRelated || [])
+    .filter(p => p.product_id !== product.product_id)
+    .slice(0, 4);
 
   return (
     <PageContainer>
       <Container maxWidth="xl">
-        {/* <Breadcrumb items={[{ label: "Home", path: "/home" }, { label: "Categories", path: "/categories" }, { label: slugToName(productSlug) }]} /> */}
-
-        <Grid container spacing={4} sx={{ marginTop: "24px" }}>
+        <Grid container spacing={5}>
           {/* Left Column - Image Gallery */}
-          <Grid size={{ xs: 12, md: 5.2 }}>
+          <Grid size={{ xs: 12, md: 5.5 }}>
             <ImageGalleryContainer>
               <ThumbnailContainer>
-                {productImages.map((image, index) => (
+                {allImages.map((image, index) => (
                   <Thumbnail
                     key={index}
                     active={index === selectedImageIndex}
                     onClick={() => setSelectedImageIndex(index)}
                   >
-                    <img src={image} alt={`Product thumbnail ${index + 1}`} />
+                    <img src={image} alt={`Thumbnail ${index + 1}`} />
                   </Thumbnail>
                 ))}
               </ThumbnailContainer>
               <MainImageContainer>
                 <MainImage
-                  src={productImages[selectedImageIndex]}
+                  src={allImages[selectedImageIndex]}
                   alt={product.name}
                 />
-                <CarouselButton
-                  onClick={handlePreviousImage}
-                  sx={{ left: "10px",
-                    position: "absolute",
-                    top: "50%",
-                    transform: "translateY(-50%) rotate(180deg)",
-                    border: "1px solid #2C55C1",
-
-                  }}
-                  aria-label="previous image"
-                  // style={{ transform: "rotate(180deg)" }}
-                >
-                  <PrimaryRightArrowIcon  />
-                </CarouselButton>
-                <CarouselButton
-                  onClick={handleNextImage}
-                  sx={{ right: "10px" ,
-                    position: "absolute",
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    border: "1px solid #2C55C1",
-                  }}
-                  aria-label="next image"
-                >
-                  <PrimaryRightArrowIcon  />
-                </CarouselButton>
+                {allImages.length > 1 && (
+                  <>
+                    <CarouselButton
+                      onClick={handlePreviousImage}
+                      sx={{ left: "12px", transform: "translateY(-50%) rotate(180deg)" }}
+                    >
+                      <PrimaryRightArrowIcon />
+                    </CarouselButton>
+                    <CarouselButton
+                      onClick={handleNextImage}
+                      sx={{ right: "12px" }}
+                    >
+                      <PrimaryRightArrowIcon />
+                    </CarouselButton>
+                  </>
+                )}
               </MainImageContainer>
             </ImageGalleryContainer>
           </Grid>
 
           {/* Right Column - Product Information */}
-          <Grid size={{ xs: 12, md: 6 }}>
+          <Grid size={{ xs: 12, md: 6.5 }}>
             <ProductInfoCard>
-              <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-              <Typography variant="m20" maxWidth="75%" >
-                {product.name}
-              </Typography>
-              <IconButton
+              <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={2}>
+                <Box>
+                  <Typography variant="m14" color="#2C65F9" sx={{ fontWeight: 600, mb: 1, display: 'block' }}>
+                    {product.Brand?.name || product.Category?.name || "Premium Quality"}
+                  </Typography>
+                  <Typography variant="m24" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
+                    {product.name}
+                  </Typography>
+                </Box>
+                <IconButton
                   onClick={() => setIsWishlisted(!isWishlisted)}
-                  sx={{ 
-                    padding: "8px" ,
+                  sx={{
                     background: "#DFE8FF",
-                    borderRadius: "50%",
-                    // width: "32px",
-                    // height: "32px",
+                    "&:hover": { background: "#C0D4FF" }
                   }}
-                  aria-label="add to wishlist"
                 >
                   {isWishlisted ? (
                     <Favorite sx={{ color: "#155DFC" }} />
@@ -458,158 +506,183 @@ const ProductDetails: React.FC = () => {
                 </IconButton>
               </Stack>
 
-              <Stack direction="column" gap="8px">
               <PriceSection>
-                <Typography variant="sb20">
-                  ₹{product.currentPrice}
+                <Typography variant="sb24" sx={{ color: "#111827" }}>
+                  ₹{product.selling_price}
                 </Typography>
                 <Typography
-                  variant="r14"
-                  sx={{ textDecoration: "line-through" }}
+                  variant="m20"
+                  sx={{ textDecoration: "line-through", color: "#9CA3AF" }}
                 >
-                  ₹{product.originalPrice}
+                  ₹{product.mrp}
                 </Typography>
                 <Typography
-                  variant="m14"
+                  variant="sb16"
                   sx={{
-                    color: "#009E08",
+                    color: "#059669",
+                    backgroundColor: "#ECFDF5",
+                    padding: "4px 12px",
                     borderRadius: "50px",
                   }}
                 >
-                  {product.discount}% off
+                  {product.discount_percentage}% off
                 </Typography>
               </PriceSection>
 
-              <Typography variant="r14">
-              Availability : in Stock {product.stock} left
+              <Typography variant="r14" sx={{ mt: 2, color: product.stock_quantity > 0 ? "#059669" : "#DC2626", fontWeight: 500 }}>
+                {product.stock_quantity > 0 ? `In Stock (${product.stock_quantity} units available)` : "Out of Stock"}
               </Typography>
 
-              <DescriptionText>
-                {showFullDescription ? product.fullDescription : product.description}
-                {!showFullDescription && (
-                  <Link
-                    component="button"
-                    onClick={() => setShowFullDescription(true)}
-                    sx={{
-                      color: "#2C65F9",
-                      textDecoration: "none",
-                      marginLeft: "4px",
-                      cursor: "pointer",
-                      "&:hover": {
-                        textDecoration: "underline",
-                      },
-                    }}
+              <Box sx={{ mt: 3 }}>
+                <Typography variant="sb16" gutterBottom>Description</Typography>
+                <DescriptionText>
+                  {showFullDescription
+                    ? product.description || "No description available."
+                    : (product.description?.substring(0, 250) || "No description available.") + (product.description?.length > 250 ? "..." : "")
+                  }
+                </DescriptionText>
+                {product.description && product.description.length > 250 && (
+                  <Button
+                    onClick={() => setShowFullDescription(!showFullDescription)}
+                    sx={{ color: "#2C65F9", textTransform: "none", p: 0, mt: 1, fontWeight: 600 }}
                   >
-                    Read More
-                  </Link>
+                    {showFullDescription ? "Show Less" : "Read More"}
+                  </Button>
                 )}
-              </DescriptionText>
-              </Stack>
+              </Box>
 
               <ActionButtons>
-                <OutlinedButton variant="outlined" onClick={handleAddToCart}>
-                  Add to Cart
+                <OutlinedButton
+                  variant="outlined"
+                  onClick={onAddToCart}
+                  disabled={addingToCart || product.stock_quantity === 0}
+                >
+                  {addingToCart ? <CircularProgress size={24} /> : "Add to Cart"}
                 </OutlinedButton>
-                <FilledButton variant="contained" onClick={handleBuyNow}>
+                <FilledButton
+                  variant="contained"
+                  onClick={handleBuyNow}
+                  disabled={addingToCart || product.stock_quantity === 0}
+                >
                   Buy Now
                 </FilledButton>
               </ActionButtons>
 
               <HighlightsSection>
-              <Typography variant="m16">Highlights</Typography>
+                <Typography variant="m20" sx={{ mb: 2 }}>Specifications</Typography>
                 <HighlightRow>
-                  <Typography variant="r14" color="text.secondary">Brand</Typography>
-                  <Typography variant="m14">{product.highlights.brand}</Typography>
+                  <Box className="label">Brand</Box>
+                  <Box className="value">{product.Brand?.name || "N/A"}</Box>
                 </HighlightRow>
                 <HighlightRow>
-                  <Typography variant="r14" color="text.secondary">Color</Typography>
-                  <Typography variant="m14">{product.highlights.color}</Typography>
+                  <Box className="label">Category</Box>
+                  <Box className="value">{product.Category?.name || "N/A"}</Box>
                 </HighlightRow>
                 <HighlightRow>
-                  <Typography variant="r14" color="text.secondary">Sheet Size</Typography>
-                    <Typography variant="m14">{product.highlights.sheetSize}</Typography>
+                  <Box className="label">Sub Category</Box>
+                  <Box className="value">{product.SubCategory?.name || "N/A"}</Box>
                 </HighlightRow>
                 <HighlightRow>
-                  <Typography variant="r14" color="text.secondary">Cover Material</Typography>
-                  <Typography variant="m14">{product.highlights.coverMaterial}</Typography>
+                  <Box className="label">Stock</Box>
+                  <Box className="value">{product.stock_quantity} Units</Box>
                 </HighlightRow>
               </HighlightsSection>
             </ProductInfoCard>
           </Grid>
         </Grid>
 
-        {/* You May Also Like Section */}
-        <Box sx={{ marginTop: "80px" }}>
-          <SectionTitle>You May Also Like</SectionTitle>
-          <SectionSubtitle>Suggestions Based On What You're Browsing.</SectionSubtitle>
+        {/* Related Products Section */}
+        <RelatedSection>
+          <Typography variant="sb32" sx={{ mb: 4 }}>You May Also Like</Typography>
 
-          <Grid container spacing={3}>
-            {relatedProducts.map((relatedProduct) => (
-              <Grid key={relatedProduct.id} size={{ xs: 12, sm: 6, md: 3 }}>
-                <ProductCard>
-                  <ProductImageContainer>
-                    {relatedProduct.isBestSale && (
-                      <BestSaleTag>Best Sale</BestSaleTag>
-                    )}
-                    <ProductImage
-                      src={relatedProduct.image}
-                      alt={relatedProduct.name}
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = "";
-                      }}
-                    />
-                  </ProductImageContainer>
-                  <ProductInfo>
-                    <Stack direction="column" gap="5px" minHeight="80px" mb="12px">
-                      <Typography variant="m12" color="#193CB8">
-                        {relatedProduct.brand}
-                      </Typography>
-                      <Stack direction="column" gap="4px">
-                        <Typography variant="sb16">{relatedProduct.name}</Typography>
-                        <Typography variant="m12" color="text.secondary">
-                          {relatedProduct.unit}
-                        </Typography>
-                      </Stack>
-                    </Stack>
-                    <PriceSectionSmall>
-                      <Typography variant="b16" color="#155DFC">
-                        ₹{relatedProduct.currentPrice}
-                      </Typography>
-                      <Typography
-                        variant="r14"
-                        color="#6A7282"
-                        sx={{ textDecoration: "line-through" }}
-                      >
-                        ₹{relatedProduct.originalPrice}
-                      </Typography>
-                      <Typography
-                        variant="sb12"
-                        color="#009E08"
-                        sx={{
-                          backgroundColor: "#E6FFE7",
-                          padding: "2px 8px",
-                          borderRadius: "50px",
-                        }}
-                      >
-                        {relatedProduct.discount}% off
-                      </Typography>
-                    </PriceSectionSmall>
-                    <AddToCartButton
-                      variant="contained"
-                      startIcon={<AddToCartWhiteIcon />}
-                    >
-                      Add to Cart
-                    </AddToCartButton>
-                  </ProductInfo>
-                </ProductCard>
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
+          {relatedLoading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 5 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <Grid container spacing={3}>
+              {relatedDisplay.map((item) => {
+                let itemImage = "/api/placeholder/280/200";
+                if (item.image1) itemImage = item.image1;
+                else if (item.image) {
+                  try {
+                    const parsed = JSON.parse(item.image);
+                    itemImage = Array.isArray(parsed) ? parsed[0] : parsed;
+                  } catch {
+                    itemImage = item.image;
+                  }
+                } else if (item.images && item.images.length > 0) {
+                  itemImage = item.images[0];
+                }
+
+                return (
+                  <Grid key={item.product_id} size={{ xs: 12, sm: 6, md: 3 }}>
+                    <RelatedProductCard onClick={() => navigate(`/product/${item.product_id}`)}>
+                      <RelatedProductImageContainer>
+                        <RelatedProductImage
+                          className="ProductImage"
+                          src={itemImage}
+                          alt={item.name}
+                          onError={(e) => { (e.target as HTMLImageElement).src = "/api/placeholder/280/200"; }}
+                        />
+                        {item.discount_percentage > 10 && (
+                          <BestSaleTag>Best Sale</BestSaleTag>
+                        )}
+                      </RelatedProductImageContainer>
+                      <RelatedProductInfo>
+                        <Stack direction="column" gap="4px" sx={{ mb: 2, minHeight: "85px" }}>
+                          <Typography variant="m12" color="#193CB8">
+                            {item.Brand?.name || item.Category?.name || "School Essentials"}
+                          </Typography>
+                          <Typography variant="sb16" sx={{
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical"
+                          }}>
+                            {item.name}
+                          </Typography>
+                          <Typography variant="m12" color="text.secondary">
+                            {item.stock_quantity > 0 ? `In Stock (${item.stock_quantity}+)` : "Out of Stock"}
+                          </Typography>
+                        </Stack>
+                        <RelatedPriceSection>
+                          <Typography variant="b16" sx={{ color: "#155DFC !important" }}>₹{item.selling_price}</Typography>
+                          <Typography variant="r14" sx={{ textDecoration: "line-through", color: "#6A7282" }}>₹{item.mrp}</Typography>
+                          <Typography variant="sb12" sx={{
+                            color: "#009E08",
+                            backgroundColor: "#E6FFE7",
+                            padding: "2px 8px",
+                            borderRadius: "50px"
+                          }}>
+                            {item.discount_percentage}% off
+                          </Typography>
+                        </RelatedPriceSection>
+                        <SmallAddToCartButton
+                          variant="contained"
+                          startIcon={<AddToCartWhiteIcon />}
+                          onClick={(e) => handleRelatedAddToCart(e, item.product_id)}
+                        >
+                          Add to Cart
+                        </SmallAddToCartButton>
+                      </RelatedProductInfo>
+                    </RelatedProductCard>
+                  </Grid>
+                );
+              })}
+            </Grid>
+          )}
+
+          {relatedDisplay.length === 0 && !relatedLoading && (
+            <Typography sx={{ color: "text.secondary", textAlign: "center", py: 5 }}>
+              No related products found.
+            </Typography>
+          )}
+        </RelatedSection>
       </Container>
     </PageContainer>
   );
 };
 
 export default ProductDetails;
-

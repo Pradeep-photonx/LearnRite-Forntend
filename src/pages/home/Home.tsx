@@ -81,64 +81,64 @@ const Home: React.FC = () => {
 
   return (
     <>
-    <Box sx={{
-      backgroundColor:"#FFF !important"
-    }}>
-      <MostRecommendedStrip />
-      <Banner />
-      <Feature />
-      <BrowseSchools />
-      <BestCategories />
-      <ProductCollections />
-      <PromotionalSections />
-      <InstagramFollow />
-      <NewsletterSubscription />
-      
-      {/* CTA Section - Inline */}
-      <PromotionalBannerContainer sx={{}}>
-        <Container maxWidth="xl">
-          <BannerWrapper>
-            <ContentSection>
-              <Stack direction="column" gap="05px">
-                <Typography
-                  variant="sb50"
-                  sx={{
-                    color: "#FFFFFF",
-                    maxWidth: "750px",
-                  }}
-                >
-                  Get All Your Student Essentials In One Click
-                </Typography>
-                <Typography
-                  variant="r20"
-                  sx={{
-                    color: "#FFFFFF",
-                    maxWidth: "750px",
-                  }}
-                >
-                  "From Books To Stationery, Find All Your School Essentials In One Simple Stop."
-                </Typography>
-              </Stack>
-              <StartShoppingButton
-                variant="outlined"
-                startIcon={<PrimaryFillArrowIcon />}
-                onClick={handleCTAButtonClick}
-                sx={{
-                  fontSize: "16px",
-                  fontWeight: 600,
-                  backgroundColor: "#FFFFFF",
-                  color: "#2C55C1",
-                  padding: "8px 12px 8px 12px",
-                }}
-              >
-                Start Shopping
-              </StartShoppingButton>
-            </ContentSection>
-          </BannerWrapper>
-        </Container>
-      </PromotionalBannerContainer>
+      <Box sx={{
+        backgroundColor: "#FFF !important"
+      }}>
+        <MostRecommendedStrip />
+        <Banner />
+        <Feature />
+        <BrowseSchools />
+        <BestCategories />
+        <ProductCollections />
+        <PromotionalSections />
+        <InstagramFollow />
+        {/* <NewsletterSubscription /> */}
 
-    </Box>
+        {/* CTA Section - Inline */}
+        <PromotionalBannerContainer sx={{}}>
+          <Container maxWidth="xl">
+            <BannerWrapper>
+              <ContentSection>
+                <Stack direction="column" gap="05px">
+                  <Typography
+                    variant="sb50"
+                    sx={{
+                      color: "#FFFFFF",
+                      maxWidth: "750px",
+                    }}
+                  >
+                    Get All Your Student Essentials In One Click
+                  </Typography>
+                  <Typography
+                    variant="r20"
+                    sx={{
+                      color: "#FFFFFF",
+                      maxWidth: "750px",
+                    }}
+                  >
+                    "From Books To Stationery, Find All Your School Essentials In One Simple Stop."
+                  </Typography>
+                </Stack>
+                <StartShoppingButton
+                  variant="outlined"
+                  startIcon={<PrimaryFillArrowIcon />}
+                  onClick={handleCTAButtonClick}
+                  sx={{
+                    fontSize: "16px",
+                    fontWeight: 600,
+                    backgroundColor: "#FFFFFF",
+                    color: "#2C55C1",
+                    padding: "8px 12px 8px 12px",
+                  }}
+                >
+                  Start Shopping
+                </StartShoppingButton>
+              </ContentSection>
+            </BannerWrapper>
+          </Container>
+        </PromotionalBannerContainer>
+
+      </Box>
     </>
   );
 };

@@ -31,6 +31,7 @@ import type { CreateStudentPayload, AddToCartPayload } from "../../api/bundle";
 import type { School } from "../../api/school";
 import toast from "react-hot-toast";
 import LoginModal from "../../components/modals/LoginModal";
+import SignUpModal from "../../components/modals/SignUpModal";
 
 // Styled Components
 const BundleContainer = styled(Box)(() => ({
@@ -230,10 +231,37 @@ const BundleDetails: React.FC = () => {
 
   const [isVerificationSuccessful, setIsVerificationSuccessful] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [signUpModalOpen, setSignUpModalOpen] = useState(false);
+
+  // Restore verified student data from localStorage on mount
+  useEffect(() => {
+    if (bundle?.bundle_id) {
+      const storageKey = `verified_student_${bundle.bundle_id}`;
+      const storedData = localStorage.getItem(storageKey);
+      if (storedData) {
+        try {
+          const parsed = JSON.parse(storedData);
+          setAdmissionNumber(parsed.admissionNumber || "");
+          setStudentName(parsed.studentName || "");
+          setClassGrade(parsed.classGrade || "");
+          setSchoolName(parsed.schoolName || "");
+          setIsVerificationSuccessful(true);
+        } catch (err) {
+          console.error("Failed to parse stored verification data:", err);
+        }
+      }
+    }
+  }, [bundle?.bundle_id]);
 
   const handleAddToCart = () => {
-    // Open verify student modal before adding to cart
-    setVerifyStudentModalOpen(true);
+    // If student is already verified effectively (has data and success flag), skip opening modal
+    // and proceed to confirm/add to cart directly.
+    if (isVerificationSuccessful && studentName && admissionNumber) {
+      handleConfirmAndAddToCart();
+    } else {
+      // Open verify student modal before adding to cart
+      setVerifyStudentModalOpen(true);
+    }
   };
 
   const handleVerifyAdmission = async () => {
@@ -251,12 +279,24 @@ const BundleDetails: React.FC = () => {
       const response = await verifyAdmission(bundle.bundle_id, admissionNumber);
 
       if (response.success && response.admission) {
-        setStudentName(response.admission.student_name);
-        setClassGrade(response.admission.class);
-        // If the API confirms the student belongs to the school, use the bundle's school name or admission school_id mapping
-        // Using bundle's school name as it's the context we are in
-        setSchoolName(bundle.school?.name || "");
+        const verifiedData = {
+          admissionNumber: admissionNumber,
+          studentName: response.admission.student_name,
+          classGrade: response.admission.class,
+          schoolName: bundle.school?.name || ""
+        };
+
+        setStudentName(verifiedData.studentName);
+        setClassGrade(verifiedData.classGrade);
+        setSchoolName(verifiedData.schoolName);
         setIsVerificationSuccessful(true);
+
+        // Persist to localStorage
+        if (bundle?.bundle_id) {
+          const storageKey = `verified_student_${bundle.bundle_id}`;
+          localStorage.setItem(storageKey, JSON.stringify(verifiedData));
+        }
+
         toast.success(response.message || "Student verified successfully");
       } else {
         setIsVerificationSuccessful(false);
@@ -359,7 +399,7 @@ const BundleDetails: React.FC = () => {
       if (!bundle) return;
 
       const addToCartPayload: AddToCartPayload = {
-        cl_id: Number(bundle.bundle_id),
+        cl_id: bundle.cl_id,
         admission_id: admissionNumber,
         student_name: studentName,
         class_id: bundle.class_id,
@@ -401,11 +441,9 @@ const BundleDetails: React.FC = () => {
 
   const handleLoginSuccess = () => {
     setLoginModalOpen(false);
-    // Optionally retry add to cart automatically, or let user click again.
-    // User requested "come back to cart page and will go for next step"
-    // Since we are in a modal, user is still on the page. They can just click "Confirm" again.
-    // Or we can auto-trigger. Let's auto-trigger for better UX.
-    handleConfirmAndAddToCart();
+    // User requested to come back to the page and manually click add to cart
+    // We also close the verify modal so they see the bundle details page
+    setVerifyStudentModalOpen(false);
   };
 
   const handleCloseModal = () => {
@@ -918,6 +956,18 @@ const BundleDetails: React.FC = () => {
         open={loginModalOpen}
         onClose={() => setLoginModalOpen(false)}
         onLoginSuccess={handleLoginSuccess}
+        onSignUpClick={() => {
+          setLoginModalOpen(false);
+          setSignUpModalOpen(true);
+        }}
+      />
+      <SignUpModal
+        open={signUpModalOpen}
+        onClose={() => setSignUpModalOpen(false)}
+        onLoginClick={() => {
+          setSignUpModalOpen(false);
+          setLoginModalOpen(true);
+        }}
       />
     </Container >
   );

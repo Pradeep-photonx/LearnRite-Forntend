@@ -169,10 +169,10 @@ export const createStudent = async (schoolId: number, data: CreateStudentPayload
 };
 
 export interface AddToCartPayload {
-    cl_id: number;
-    admission_id: string;
-    student_name: string;
-    class_id: number;
+    cl_id: number | null;
+    admission_id: string | null;
+    student_name: string | null;
+    class_id: number | null;
     bundle_products: {
         product_id: number;
         quantity: number;

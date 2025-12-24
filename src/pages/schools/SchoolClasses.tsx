@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     Box,
     Container,
@@ -17,8 +17,9 @@ import {
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { KeyboardArrowDown } from "@mui/icons-material";
 import DelhiPublic from '../../assets/images/delhi-public-school.png';
-import { BoardIcon, SearchIcon, WhiteRightArrowIcon } from "../../components/icons/CommonIcons";
+import { BoardIcon, SearchIcon } from "../../components/icons/CommonIcons";
 import { useSchoolClasses } from "../../api/useSchoolClasses";
+import { useSchools } from "../../api/useSchools";
 import { CircularProgress } from "@mui/material";
 import type { School } from "../../api/school";
 
@@ -204,13 +205,30 @@ const SchoolClasses: React.FC = () => {
     const languageOptions = ["All Languages", "Telugu", "Hindi"];
 
     // Get school data from location state
-    const school = location.state?.school as School | undefined;
+    const { state } = useLocation();
+    const [fetchedSchool, setFetchedSchool] = useState<School | undefined>(undefined);
 
-    const { classes, loading, error } = useSchoolClasses(school?.school_id || null);
+    // Fetch all schools to find by slug if state is missing
+    const { schools, loading: schoolsLoading } = useSchools();
+
+    useEffect(() => {
+        if (!state?.school && schools.length > 0 && schoolSlug) {
+            const foundSchool = schools.find(s =>
+                s.name.toLowerCase().replace(/ /g, '-') === schoolSlug.toLowerCase()
+            );
+            setFetchedSchool(foundSchool);
+        }
+    }, [schools, schoolSlug, state?.school]);
+
+    const activeSchool = state?.school || fetchedSchool;
+
+    const { classes, loading: classesLoading, error } = useSchoolClasses(activeSchool?.school_id || null);
+
+    const loading = schoolsLoading || (activeSchool && classesLoading); // Combined loading state
 
     console.log('SchoolClasses Debug:', {
-        school,
-        schoolId: school?.school_id,
+        activeSchool,
+        schoolId: activeSchool?.school_id,
         classes,
         loading,
         error
@@ -241,7 +259,7 @@ const SchoolClasses: React.FC = () => {
                         ...bundle,
                         bundle_name: `${classItem.class_name} - ${bundle.language}`,
                     },
-                    school
+                    school: activeSchool
                 }
             });
         } catch (err) {
@@ -285,7 +303,11 @@ const SchoolClasses: React.FC = () => {
         <>
             {/* School Banner Section */}
             <Container maxWidth="xl">
-                {!school ? (
+                {loading ? (
+                    <Box sx={{ display: "flex", justifyContent: "center", padding: "50px 0" }}>
+                        <CircularProgress />
+                    </Box>
+                ) : !activeSchool ? (
                     <Box sx={{ padding: "50px", textAlign: "center" }}>
                         <Typography variant="h5">School details not found. Please select a school first.</Typography>
                         <Button onClick={() => navigate('/schools')} sx={{ marginTop: "20px" }}>Back to Schools</Button>
@@ -312,7 +334,7 @@ const SchoolClasses: React.FC = () => {
                                             opacity: 0.9,
                                         }}
                                     >
-                                        {school.board}
+                                        {activeSchool.board}
                                     </Typography>
                                 </Box>
                                 <Box sx={{
@@ -326,7 +348,7 @@ const SchoolClasses: React.FC = () => {
                                             color: "#FFFFFF",
                                         }}
                                     >
-                                        {school.name}
+                                        {activeSchool.name}
                                     </Typography>
                                     <Typography
                                         variant="r14"
@@ -334,7 +356,7 @@ const SchoolClasses: React.FC = () => {
                                             color: "#FFF",
                                         }}
                                     >
-                                        {school.branch}
+                                        {activeSchool.branch}
                                     </Typography>
                                 </Box>
                                 <Box sx={{
@@ -362,8 +384,8 @@ const SchoolClasses: React.FC = () => {
                             </BannerLeft>
                             <BannerRight>
                                 <SchoolLogo
-                                    src={school.image}
-                                    alt={`${school.name} Logo`}
+                                    src={activeSchool.image}
+                                    alt={`${activeSchool.name} Logo`}
                                     onError={(e) => {
                                         (e.target as HTMLImageElement).src = DelhiPublic;
                                     }}

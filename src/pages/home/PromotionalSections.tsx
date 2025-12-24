@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Box,
   Container,
@@ -7,10 +8,12 @@ import {
   Button,
   IconButton,
   styled,
+  CircularProgress,
 } from "@mui/material";
 import { AddToCartWhiteIcon } from "../../components/icons/CommonIcons";
 import { ArrowBackIos, ArrowForwardIos } from "@mui/icons-material";
 import type { ProductData } from "../home/ProductCollections";
+import { useDiscountedProducts } from "../../api/useDiscountedProducts";
 import booksmoreImage from "../../assets/images/books-more.png";
 import stationeryshopImage from "../../assets/images/image-03.png";
 
@@ -59,7 +62,7 @@ const BannerSection = styled(Box)<{ bgColor?: string; borderColor?: string }>(({
   boxShadow: borderColor ? `1px 4px 5px 0px ${borderColor}80` : "1px 4px 5px 0px #D3C1AAB2",
   backgroundColor: bgColor || "#FFEFDB",
   borderRadius: "12px",
-//   padding: "25px 25px 0px 25px",
+  //   padding: "25px 25px 0px 25px",
   height: "405px",
   gap: "12px",
   [theme.breakpoints.down("md")]: {
@@ -76,13 +79,13 @@ const SaleBanner = styled(Box)<{ bgColor?: string }>(({ bgColor }) => ({
   justifyContent: "center",
   alignItems: "center",
   alignSelf: "center",
-  margin:"0px 25px 0px 25px !important",
+  margin: "0px 25px 0px 25px !important",
 
 }));
 
-const BannerImage = styled(Box)<{ 
-  imageWidth?: string; 
-  imageHeight?: string; 
+const BannerImage = styled(Box)<{
+  imageWidth?: string;
+  imageHeight?: string;
   imageMarginTop?: string;
 }>(({ imageWidth, imageHeight, imageMarginTop }) => ({
   width: imageWidth || "185px",
@@ -265,7 +268,7 @@ const defaultSections: PromotionalSectionData[] = [
     imageWidth: "185px",
     imageHeight: "100%",
     imageMarginTop: "20px",
-    ImageCover:"cover",
+    ImageCover: "cover",
     products: [
       {
         id: 1,
@@ -345,7 +348,7 @@ const defaultSections: PromotionalSectionData[] = [
     imageWidth: "100%",
     imageHeight: "100%",
     imageMarginTop: "15px",
-    ImageCover:"cover",
+    ImageCover: "cover",
     products: [
       {
         id: 6,
@@ -412,10 +415,65 @@ const defaultSections: PromotionalSectionData[] = [
 ];
 
 const PromotionalSections: React.FC<PromotionalSectionsProps> = ({
-  sections = defaultSections,
+  sections: propSections,
   onProductClick,
   onAddToCart,
 }) => {
+  const { products: fetchedDiscounted, loading } = useDiscountedProducts();
+
+  // Map API products to internal format
+  const mapApiProducts = (apiProducts: any[]) => {
+    return apiProducts.map(p => {
+      let displayImage = "/api/placeholder/280/200";
+      try {
+        if (p.image1) {
+          displayImage = p.image1;
+        } else if (p.image) {
+          const parsed = JSON.parse(p.image);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            displayImage = parsed[0];
+          }
+        } else if (p.images && p.images.length > 0) {
+          displayImage = p.images[0];
+        }
+      } catch (e) {
+        console.error("Failed to parse product image", e);
+      }
+
+      return {
+        id: p.product_id,
+        name: p.name,
+        brand: p.Brand?.name || p.Category?.name || "School Essentials",
+        image: displayImage,
+        unit: p.stock_quantity > 0 ? `In Stock (${p.stock_quantity}+)` : "Out of Stock",
+        currentPrice: p.selling_price,
+        originalPrice: p.mrp,
+        discount: p.discount_percentage,
+        category: p.Category?.name || "Other",
+        isBestSale: p.discount_percentage > 10,
+        originalData: p
+      };
+    });
+  };
+
+  const sections = propSections || defaultSections.map(section => {
+    if (section.title === "Books & More") {
+      return {
+        ...section,
+        products: fetchedDiscounted.length > 0 ? mapApiProducts(fetchedDiscounted) : section.products
+      };
+    }
+    return section;
+  });
+
+  if (loading && !propSections) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", padding: "80px 0" }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
     <PromotionalSectionsContainer>
       <Container maxWidth="xl">
@@ -444,6 +502,7 @@ const PromoSectionComponent: React.FC<PromoSectionComponentProps> = ({
   onProductClick,
   onAddToCart,
 }) => {
+  const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [translateX, setTranslateX] = useState(0);
   const carouselRef = useRef<HTMLDivElement>(null);
@@ -520,6 +579,8 @@ const PromoSectionComponent: React.FC<PromoSectionComponentProps> = ({
   const handleProductClick = (product: ProductData) => {
     if (onProductClick) {
       onProductClick(product);
+    } else {
+      navigate(`/product/${product.id}`);
     }
   };
 
@@ -544,29 +605,29 @@ const PromoSectionComponent: React.FC<PromoSectionComponentProps> = ({
         }}
       >
         {/* Banner Section */}
-        <BannerSection 
+        <BannerSection
           bgColor={section.bannerBgColor}
           borderColor={section.bannerBorderColor}
         >
           <Box sx={{ display: "flex", flexDirection: "column", gap: "10px", justifyContent: "center", alignItems: "center", padding: "25px 30px 0px 30px" }}>
-          <SaleBanner bgColor={section.saleBannerBgColor}>
+            <SaleBanner bgColor={section.saleBannerBgColor}>
+              <Typography
+                variant="sb20"
+                sx={{
+                  color: section.saleTextColor || "#BD2A28",
+                }}
+              >
+                {section.saleText}
+              </Typography>
+            </SaleBanner>
             <Typography
               variant="sb20"
               sx={{
-                color: section.saleTextColor || "#BD2A28",
+                color: section.titleColor || "#765935",
               }}
             >
-              {section.saleText}
+              {section.title}
             </Typography>
-          </SaleBanner>
-          <Typography
-            variant="sb20"
-            sx={{
-              color: section.titleColor || "#765935",
-            }}
-          >
-            {section.title}
-          </Typography>
           </Box>
           <BannerImage
             imageWidth={section.imageWidth}
@@ -657,36 +718,36 @@ const PromoSectionComponent: React.FC<PromoSectionComponentProps> = ({
           </CarouselContainer>
         </CarouselSection>
         <NavigationButtons>
-              <NavButton
-                onClick={handlePrev}
-                disabled={!canGoPrev}
-                aria-label="Previous products"
-                sx={{
-                    position: "absolute",
-                    left: "26%",
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    zIndex: 1,
+          <NavButton
+            onClick={handlePrev}
+            disabled={!canGoPrev}
+            aria-label="Previous products"
+            sx={{
+              position: "absolute",
+              left: "26%",
+              top: "50%",
+              transform: "translateY(-50%)",
+              zIndex: 1,
 
-                }}
-              >
-                <ArrowBackIos sx={{ fontSize: "18px" }} />
-              </NavButton>
-              <NavButton
-                onClick={handleNext}
-                disabled={!canGoNext}
-                aria-label="Next products"
-                sx={{
-                    position: "absolute",
-                    right: "0px",
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    zIndex: 1,
-                }}
-              >
-                <ArrowForwardIos sx={{ fontSize: "18px" }} />
-              </NavButton>
-            </NavigationButtons>
+            }}
+          >
+            <ArrowBackIos sx={{ fontSize: "18px" }} />
+          </NavButton>
+          <NavButton
+            onClick={handleNext}
+            disabled={!canGoNext}
+            aria-label="Next products"
+            sx={{
+              position: "absolute",
+              right: "0px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              zIndex: 1,
+            }}
+          >
+            <ArrowForwardIos sx={{ fontSize: "18px" }} />
+          </NavButton>
+        </NavigationButtons>
       </SectionWrapper>
     </PromoSection>
   );

@@ -9,9 +9,9 @@ import {
 } from "@mui/material";
 import studentsImage from "../../assets/images/study-essential.png";
 import backgroundImage from "../../assets/images/study-essential-bg.png";
-import categoryImage1 from "../../assets/images/notebooks.png";
-import categoryImage2 from "../../assets/images/pen-penclis.png";
 import { WhiteLeftArrowIcon, WhiteRightArrowIcon } from "../../components/icons/CommonIcons";
+import { CircularProgress } from "@mui/material";
+import { usePublicCategories } from "../../api/usePublicCategories";
 
 
 // Styled Components
@@ -180,65 +180,24 @@ interface BestCategoriesProps {
   onCategoryClick?: (category: CategoryData) => void;
 }
 
-// Default Categories Data (for demo - will be replaced by backend data)
-const defaultCategories: CategoryData[] = [
-  {
-    id: 1,
-    name: "Notebooks",
-    image: categoryImage1,
-    imageAlt: "Notebooks",
-  },
-  {
-    id: 2,
-    name: "Pen, Pencils",
-    image: categoryImage2,
-    imageAlt: "Pen, Pencils ",
-  },
-  {
-    id: 3,
-    name: "Backpacks",
-    image: "/api/placeholder/200/180",
-    imageAlt: "Backpacks",
-  },
-  {
-    id: 4,
-    name: "Desk Accessories",
-    image: "/api/placeholder/200/180",
-    imageAlt: "Desk Accessories",
-  },
-  {
-    id: 5,
-    name: "Notebooks",
-    image: categoryImage1,
-    imageAlt: "Notebooks",
-  },
-  {
-    id: 6,
-    name: "Pen, Pencils",
-    image: categoryImage2,
-    imageAlt: "Pen, Pencils ",
-  },
-  {
-    id: 7,
-    name: "Backpacks",
-    image: "/api/placeholder/200/180",
-    imageAlt: "Backpacks",
-  },
-  {
-    id: 8,
-    name: "Desk Accessories",
-    image: "/api/placeholder/200/180",
-    imageAlt: "Desk Accessories",
-  },
-];
+// Best Categories Section Footer (if any) - currently empty
 
 const BestCategories: React.FC<BestCategoriesProps> = ({
-  categories = defaultCategories,
+  categories: propCategories,
   title = "Study Essentials Hub",
   tagline = "Everything you need for school, organized in one place.",
   onCategoryClick,
 }) => {
+  const { categories: fetchedCategories, loading } = usePublicCategories();
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  const categories: CategoryData[] = propCategories || (fetchedCategories || []).map(cat => ({
+    id: cat.category_id,
+    name: cat.name,
+    image: cat.image || "/api/placeholder/250/320",
+    imageAlt: cat.name,
+    originalData: cat
+  }));
   const [translateX, setTranslateX] = useState(0);
   const carouselRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -403,34 +362,43 @@ const BestCategories: React.FC<BestCategoriesProps> = ({
               </NavigationButtons>
             </CategoriesHeader>
 
-            <CarouselContainer ref={carouselRef}>
-              <CarouselTrack translateX={translateX}>
-                {categories.map((category, index) => (
-                  <CategoryCard
-                    key={category.id}
-                    ref={index === 0 ? cardRef : undefined}
-                    onClick={() => handleCategoryClick(category)}
-                  >
-                    <CategoryImage
-                      src={category.image}
-                      alt={category.imageAlt || category.name}
-                    />
-                    <CategoryLabel variant="sb20">
-                      {category.name}
-                    </CategoryLabel>
-                    <Box sx={{
-                      position: "absolute",
-                      top: 0,
-                      background: "linear-gradient(180deg, rgba(0, 0, 0, 0) 64.92%, rgba(0, 0, 0, 0.7) 93.69%)",
-                      width: "100%",
-                      height: "100%",
-                      zIndex: 1,
-                    }}>
-                    </Box>
-                  </CategoryCard>
-                ))}
-              </CarouselTrack>
-            </CarouselContainer>
+            {loading ? (
+              <Box sx={{ display: "flex", justifyContent: "center", padding: "50px 0" }}>
+                <CircularProgress sx={{ color: "#FFFFFF" }} />
+              </Box>
+            ) : (
+              <CarouselContainer ref={carouselRef}>
+                <CarouselTrack translateX={translateX}>
+                  {categories.map((category, index) => (
+                    <CategoryCard
+                      key={category.id}
+                      ref={index === 0 ? cardRef : undefined}
+                      onClick={() => handleCategoryClick(category)}
+                    >
+                      <CategoryImage
+                        src={category.image}
+                        // alt={category.imageAlt || category.name}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = "/api/placeholder/250/320";
+                        }}
+                      />
+                      <CategoryLabel variant="sb20">
+                        {category.name}
+                      </CategoryLabel>
+                      <Box sx={{
+                        position: "absolute",
+                        top: 0,
+                        background: "linear-gradient(180deg, rgba(0, 0, 0, 0) 64.92%, rgba(0, 0, 0, 0.7) 93.69%)",
+                        width: "100%",
+                        height: "100%",
+                        zIndex: 1,
+                      }}>
+                      </Box>
+                    </CategoryCard>
+                  ))}
+                </CarouselTrack>
+              </CarouselContainer>
+            )}
           </Box>
         </Container>
       </ContentWrapper>

@@ -7,8 +7,9 @@ import {
   IconButton,
   styled,
 } from "@mui/material";
-import { ArrowBackIos, ArrowForwardIos } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
+import { useNavigate } from "react-router-dom";
+import { useSchools } from "../../api/useSchools";
 import DelhiPublic from '../../assets/images/delhi-public-school.png';
 import SuchitraAcademy from '../../assets/images/suchitra-acadamy.png';
 import { WhiteLeftArrowIcon, WhiteRightArrowIcon } from "../../components/icons/CommonIcons";
@@ -55,7 +56,7 @@ const NavButton = styled(IconButton)<{ active?: boolean }>(({ active, theme }) =
 
 const CarouselContainer = styled(Box)({
   position: "relative",
-  overflow: "hidden",
+  // overflow: "hidden",
   width: "100%",
 });
 
@@ -64,7 +65,6 @@ const CarouselTrack = styled(Box)<{ translateX: number }>(({ translateX }) => ({
   transition: "transform 0.5s ease-in-out",
   transform: `translateX(-${translateX}px)`,
   gap: "20px",
-//   padding: "0px 0px20px 0px",
 }));
 
 const SchoolCard = styled(Box)(({ theme }) => ({
@@ -126,6 +126,7 @@ export interface SchoolData {
   name: string;
   logo: string;
   logoAlt?: string;
+  originalData?: any;
 }
 
 interface BrowseSchoolsProps {
@@ -134,46 +135,46 @@ interface BrowseSchoolsProps {
   onSchoolClick?: (school: SchoolData) => void;
 }
 
-// Default Schools Data (for demo - will be replaced by backend data)
+// Default Schools Data (fallback)
 const defaultSchools: SchoolData[] = [
-  {
-    id: 1,
-    name: "Delhi Public School",
-    logo: DelhiPublic,
-    logoAlt: "Delhi Public School Logo",
-  },
-  {
-    id: 2,
-    name: "Suchitra Academy",
-    logo: SuchitraAcademy,
-    logoAlt: "Suchitra Academy Logo",
-  },
-  {
-    id: 3,
-    name: "Oakridge International School",
-    logo: "/api/placeholder/120/120",
-    logoAlt: "Oakridge International School Logo",
-  },
-  {
-    id: 4,
-    name: "Euro School",
-    logo: "/api/placeholder/120/120",
-    logoAlt: "Euro School Logo",
-  },
-  {
-    id: 5,
-    name: "Suchitra Academy",
-    logo: "/api/placeholder/120/120",
-    logoAlt: "Suchitra Academy Logo",
-  },
+  // {
+  //   id: 1,
+  //   name: "Delhi Public School",
+  //   logo: DelhiPublic,
+  //   logoAlt: "Delhi Public School Logo",
+  // },
+  // {
+  //   id: 2,
+  //   name: "Suchitra Academy",
+  //   logo: SuchitraAcademy,
+  //   logoAlt: "Suchitra Academy Logo",
+  // },
 ];
 
 const BrowseSchools: React.FC<BrowseSchoolsProps> = ({
-  schools = defaultSchools,
+  schools: propSchools,
   title = "Browse Schools",
   onSchoolClick,
 }) => {
   const theme = useTheme();
+  const navigate = useNavigate();
+  const { schools: fetchedSchools, loading } = useSchools();
+
+  const generateSlug = (name: string) => {
+    return name
+      .toLowerCase()
+      .replace(/[^\w ]+/g, '')
+      .replace(/ +/g, '-');
+  };
+
+  const schools = propSchools || (fetchedSchools.length > 0 ? fetchedSchools.map(s => ({
+    id: s.school_id,
+    name: s.name,
+    logo: s.image,
+    logoAlt: `${s.name} Logo`,
+    originalData: s
+  })) : defaultSchools);
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [translateX, setTranslateX] = useState(0);
   const carouselRef = useRef<HTMLDivElement>(null);
@@ -198,22 +199,18 @@ const BrowseSchools: React.FC<BrowseSchoolsProps> = ({
       }
     };
 
-    // Use requestAnimationFrame for better timing
-    const rafId = requestAnimationFrame(() => {
-      updateDimensions();
-      // Also try after a short delay to ensure everything is rendered
-      setTimeout(updateDimensions, 50);
-    });
+    updateDimensions();
+    const timer = setTimeout(updateDimensions, 100);
 
     window.addEventListener('resize', updateDimensions);
     return () => {
-      cancelAnimationFrame(rafId);
+      clearTimeout(timer);
       window.removeEventListener('resize', updateDimensions);
     };
   }, [schools.length]);
 
   useEffect(() => {
-    if (cardWidth > 0 && carouselRef.current) {
+    if (cardWidth > 0) {
       const newTranslateX = currentIndex * cardWidth;
       setTranslateX(newTranslateX);
     }
@@ -239,6 +236,8 @@ const BrowseSchools: React.FC<BrowseSchoolsProps> = ({
   const handleCardClick = (school: SchoolData) => {
     if (onSchoolClick) {
       onSchoolClick(school);
+    } else if (school.originalData) {
+      navigate(`/schools/${generateSlug(school.name)}`, { state: { school: school.originalData } });
     }
   };
 
@@ -246,30 +245,20 @@ const BrowseSchools: React.FC<BrowseSchoolsProps> = ({
   const maxIndex = Math.max(0, schools.length - cardsVisible);
   const canGoNext = currentIndex < maxIndex && cardWidth > 0;
 
+  if (loading && !propSchools) {
+    return null; // Or a skeleton
+  }
+
   return (
-    <BrowseSchoolsContainer>
+    <BrowseSchoolsContainer sx={{ overflow: "hidden !important" }}>
       <Container maxWidth="xl">
         <HeaderSection>
-          <Typography
-            variant="sb40"
-          >
-            {title}
-          </Typography>
+          <Typography variant="sb40">{title}</Typography>
           <NavigationButtons>
-            <NavButton
-              onClick={handlePrev}
-              disabled={!canGoPrev}
-              active={false}
-              aria-label="Previous schools"
-            >
+            <NavButton onClick={handlePrev} disabled={!canGoPrev} aria-label="Previous schools">
               <WhiteLeftArrowIcon />
             </NavButton>
-            <NavButton
-              onClick={handleNext}
-              disabled={!canGoNext}
-              active={true}
-              aria-label="Next schools"
-            >
+            <NavButton onClick={handleNext} disabled={!canGoNext} aria-label="Next schools">
               <WhiteRightArrowIcon />
             </NavButton>
           </NavigationButtons>
@@ -279,43 +268,32 @@ const BrowseSchools: React.FC<BrowseSchoolsProps> = ({
           <CarouselTrack translateX={translateX}>
             {schools.map((school, index) => (
               <SchoolCard
-                position="relative"
                 key={school.id}
                 ref={index === 0 ? cardRef : undefined}
                 onClick={() => handleCardClick(school)}
+                sx={{ position: "relative", }}
               >
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "start",
-                    width: "100%",
-                  }}
-                >
-                  <SchoolLogo sx={{
-                    width: "70px",
-                    height: "70px",
-                    // objectFit: "contain",
-                    // marginBottom: "16px",
-                  }}
+                <Box sx={{ display: "flex", flexDirection: "column", alignItems: "start", width: "100%" }}>
+                  <SchoolLogo
+                    sx={{ width: "70px", height: "70px" }}
                     src={school.logo}
-                    alt={school.logoAlt || `${school.name} Logo`}
+                    alt={school.logoAlt}
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = DelhiPublic;
+                    }}
                   />
                   <SchoolName
                     variant="sb16"
                     sx={{
                       color: theme.palette.text.primary,
                       fontSize: { xs: "14px", md: "16px" },
+                      textAlign: "left"
                     }}
                   >
                     {school.name}
                   </SchoolName>
                 </Box>
-                <CardArrow sx={{
-                    position: "absolute",
-                    right: "16px",
-                    top: "20px",
-                }}>
+                <CardArrow sx={{ position: "absolute", right: "16px", top: "20px" }}>
                   <WhiteRightArrowIcon />
                 </CardArrow>
               </SchoolCard>
@@ -328,4 +306,3 @@ const BrowseSchools: React.FC<BrowseSchoolsProps> = ({
 };
 
 export default BrowseSchools;
-

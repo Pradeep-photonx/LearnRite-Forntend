@@ -237,7 +237,7 @@ const TopHeader: React.FC = () => {
               <IconButton aria-label="wishlist" sx={{ padding: "0px" }}>
                 <WishlistIcon />
               </IconButton>
-              <IconButton sx={{ color: "#111827", padding: "0px" }} aria-label="cart">
+              <IconButton onClick={() => navigate("/cart")} sx={{ color: "#111827", padding: "0px" }} aria-label="cart">
                 <AddToCartIcon />
               </IconButton>
               {user ? (
@@ -269,7 +269,7 @@ const TopHeader: React.FC = () => {
                       horizontal: "right",
                     }}
                   >
-                    <MenuItem onClick={handleUserMenuClose}>Profile</MenuItem>
+                    <MenuItem onClick={() => { handleUserMenuClose(); navigate("/profile"); }}>Profile</MenuItem>
                     <MenuItem onClick={handleUserMenuClose}>Change Password</MenuItem>
                     <MenuItem onClick={handleLogout}>Logout</MenuItem>
                   </Menu>
@@ -277,6 +277,12 @@ const TopHeader: React.FC = () => {
               ) : (
                 <Button
                   variant="contained"
+                  sx={{
+                    textTransform: "none",
+                    padding: "12px 12px",
+                    // fontWeight: 600,
+                    fontSize: "16px",
+                  }}
                   onClick={() => setLoginModalOpen(true)}
                 >
                   Sign in / Sign up

@@ -13,6 +13,9 @@ import {
     styled,
 } from "@mui/material";
 import { CloseIcon } from "../icons/CommonIcons";
+import { createAddress, updateAddress } from "../../api/address";
+import toast from "react-hot-toast";
+import { useEffect } from "react";
 
 // Styled Components
 const StyledDialog = styled(Dialog)(({ theme }) => ({
@@ -156,6 +159,7 @@ interface AddAddressModalProps {
     open: boolean;
     onClose: () => void;
     onAddAddress?: (addressData: AddressFormData) => void;
+    initialData?: any; // Using any for now to match the address record from API
 }
 
 export interface AddressFormData {
@@ -164,6 +168,7 @@ export interface AddressFormData {
     city: string;
     state: string;
     phoneNumber: string;
+    alternatePhone?: string;
     pinCode: string;
     country: string;
 }
@@ -172,40 +177,91 @@ const AddAddressModal: React.FC<AddAddressModalProps> = ({
     open,
     onClose,
     onAddAddress,
+    initialData,
 }) => {
     const [fullName, setFullName] = useState("");
     const [address, setAddress] = useState("");
     const [city, setCity] = useState("");
     const [state, setState] = useState("");
-    const [phoneNumber, setPhoneNumber] = useState("+91 9876543210");
+    const [phoneNumber, setPhoneNumber] = useState("");
+    const [alternatePhone, setAlternatePhone] = useState("");
     const [pinCode, setPinCode] = useState("");
     const [country, setCountry] = useState("");
+    const [loading, setLoading] = useState(false);
 
-    const handleAddAddress = () => {
-        const addressData: AddressFormData = {
-            fullName,
-            address,
-            city,
-            state,
-            phoneNumber,
-            pinCode,
-            country,
-        };
-
-        if (onAddAddress) {
-            onAddAddress(addressData);
+    useEffect(() => {
+        if (open && initialData) {
+            setFullName(initialData.first_name || "");
+            setAddress(initialData.address1 || "");
+            setCity(initialData.city || "");
+            setState(initialData.state_id || "");
+            setPhoneNumber(initialData.phone || "");
+            setAlternatePhone(initialData.alternate_phone || "");
+            setPinCode(initialData.pincode?.toString() || "");
+            setCountry(initialData.country || "India");
+        } else if (open && !initialData) {
+            // Reset for "Add" mode
+            setFullName("");
+            setAddress("");
+            setCity("");
+            setState("");
+            setPhoneNumber("");
+            setAlternatePhone("");
+            setPinCode("");
+            setCountry("India");
         }
+    }, [open, initialData]);
 
-        // Reset form
-        setFullName("");
-        setAddress("");
-        setCity("");
-        setState("");
-        setPhoneNumber("+91 9876543210");
-        setPinCode("");
-        setCountry("");
+    const handleAddAddress = async () => {
+        setLoading(true);
+        try {
+            const payload: any = {
+                first_name: fullName,
+                address1: address,
+                phone: phoneNumber,
+                alternate_phone: alternatePhone,
+                pincode: pinCode, // Sending as string as per updated curl
+                country: country,
+                state_id: state,
+                city: city,
+                // Adding fields from updated curl if needed, but keeping it minimal for now
+                last_name: "",
+                address2: "",
+                address_type: "Home"
+            };
 
-        onClose();
+            let response;
+            if (initialData && initialData.address_id) {
+                response = await updateAddress(initialData.address_id, payload);
+            } else {
+                response = await createAddress(payload);
+            }
+
+            if (response) {
+                const addressData: AddressFormData = {
+                    fullName,
+                    address,
+                    city,
+                    state,
+                    phoneNumber,
+                    alternatePhone,
+                    pinCode,
+                    country,
+                };
+
+                if (onAddAddress) {
+                    onAddAddress(addressData);
+                }
+
+                toast.success(initialData ? "Address updated successfully" : "Address added successfully");
+                handleCancel(); // Reset and close
+            }
+        } catch (error: any) {
+            console.error("Failed to save address:", error);
+            toast.error(error.response?.data?.message || "Failed to save address");
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleCancel = () => {
@@ -214,7 +270,8 @@ const AddAddressModal: React.FC<AddAddressModalProps> = ({
         setAddress("");
         setCity("");
         setState("");
-        setPhoneNumber("+91 9876543210");
+        setPhoneNumber("");
+        setAlternatePhone("");
         setPinCode("");
         setCountry("");
         onClose();
@@ -236,7 +293,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = ({
         <StyledDialog open={open} onClose={handleCancel} maxWidth="md" fullWidth>
             {/* Header */}
             <StyledDialogTitle>
-                <Typography variant="sb20">Add Address</Typography>
+                <Typography variant="sb20">{initialData ? "Edit Address" : "Add Address"}</Typography>
                 <IconButton onClick={handleCancel} aria-label="close">
                     <CloseIcon />
                 </IconButton>
@@ -273,7 +330,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = ({
                                     </Typography>
                                 </FormLabel>
                                 <StyledTextField
-                                    placeholder="+91 9876543210"
+                                    placeholder="Enter your phone number"
                                     value={phoneNumber}
                                     onChange={(e) => setPhoneNumber(e.target.value)}
                                     variant="outlined"
@@ -283,7 +340,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = ({
                             </FormField>
                         </Grid>
                         <Grid size={{ xs: 12 }}>
-                        <FormField>
+                            <FormField>
                                 <FormLabel>
                                     Address{" "}
                                     <Typography component="span" sx={{ color: "#EF4444" }}>
@@ -292,10 +349,25 @@ const AddAddressModal: React.FC<AddAddressModalProps> = ({
                                 </FormLabel>
                                 <StyledTextField
                                     placeholder="Enter address"
-                                    value={city}
-                                    onChange={(e) => setCity(e.target.value)}
+                                    value={address}
+                                    onChange={(e) => setAddress(e.target.value)}
                                     variant="outlined"
                                     fullWidth
+                                />
+                            </FormField>
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 6 }}>
+                            <FormField>
+                                <FormLabel>
+                                    Alternate Phone Number
+                                </FormLabel>
+                                <StyledTextField
+                                    placeholder="Enter alternate phone number"
+                                    value={alternatePhone}
+                                    onChange={(e) => setAlternatePhone(e.target.value)}
+                                    variant="outlined"
+                                    fullWidth
+                                    type="tel"
                                 />
                             </FormField>
                         </Grid>
@@ -376,13 +448,17 @@ const AddAddressModal: React.FC<AddAddressModalProps> = ({
 
             {/* Footer */}
             <StyledDialogActions>
-                <CancelButton onClick={handleCancel}>Cancel</CancelButton>
+                <CancelButton onClick={handleCancel} disabled={loading}>Cancel</CancelButton>
                 <AddAddressButton
                     variant="contained"
                     onClick={handleAddAddress}
-                    disabled={!isFormValid()}
+                    disabled={!isFormValid() || loading}
+                    sx={{
+                        background: loading ? "#E5E7EB" : "linear-gradient(98.42deg, #2C65F9 10.23%, #2C55C1 80.76%)",
+                        minWidth: "140px"
+                    }}
                 >
-                    Add Address
+                    {loading ? (initialData ? "Updating..." : "Adding...") : (initialData ? "Update Address" : "Add Address")}
                 </AddAddressButton>
             </StyledDialogActions>
         </StyledDialog>

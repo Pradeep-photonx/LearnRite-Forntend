@@ -10,7 +10,9 @@ import {
   TextField,
   Link,
   styled,
+  InputAdornment,
 } from "@mui/material";
+import { Visibility, VisibilityOff } from "@mui/icons-material";
 import LoginBannerImage from "../../assets/images/login-bg.png";
 import { CloseIcon } from "../icons/CommonIcons";
 import { login } from "../../api/auth";
@@ -159,6 +161,7 @@ const LoginModal: React.FC<LoginModalProps> = ({
 }) => {
   const [phoneEmail, setPhoneEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
     try {
@@ -231,12 +234,25 @@ const LoginModal: React.FC<LoginModalProps> = ({
               Password <Typography component="span" sx={{ color: "#EF4444" }}>*</Typography>
             </FormLabel>
             <StyledTextField
-              type="password"
+              type={showPassword ? "text" : "password"}
               placeholder="Enter password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               variant="outlined"
               fullWidth
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="toggle password visibility"
+                      onClick={() => setShowPassword(!showPassword)}
+                      edge="end"
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
             />
             <ForgotPasswordLink onClick={handleForgotPasswordClick}>
               Forgot password?

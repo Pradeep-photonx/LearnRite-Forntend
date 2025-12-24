@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+// import { useNavigate } from "react-router-dom";
 import {
     Box,
     Container,
@@ -11,15 +12,23 @@ import {
     RadioGroup,
     FormControlLabel,
     FormControl,
-    Link,
+    TextField,
     styled,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
-import { Add, Remove } from "@mui/icons-material";
 import dummyImage from "../../assets/images/sm-cart.png";
-import dummyImage2 from "../../assets/images/sm-cart-1.png";
+import Breadcrumb from "../../components/Breadcrumb";
 import AddAddressModal from "../../components/modals/AddAddressModal";
 import type { AddressFormData } from "../../components/modals/AddAddressModal";
+import { getAddressList, deleteAddress } from "../../api/address";
+import { getCartDetails, updateCartItemQuantity, type CartItem } from "../../api/cart";
+import { placeOrder, type PlaceOrderPayload } from "../../api/order";
+import { useEffect } from "react";
+import toast from "react-hot-toast";
 
 // Styled Components
 const CheckoutContainer = styled(Box)({
@@ -226,115 +235,238 @@ const TotalValue = styled(Typography)({
 
 // Interfaces
 interface Address {
-    id: number;
-    name: string;
-    address: string;
+    address_id: number;
+    first_name: string;
+    address1: string;
     phone: string;
+    city: string;
+    pincode: number | string;
+    state_id: string;
 }
 
-interface OrderItem {
-    id: number;
-    name: string;
-    description: string;
-    image: string;
-    price: number;
-    quantity: number;
-}
+// (Removed OrderItem interface as we'll use CartItem)
 
 // Sample Data
-const sampleAddresses: Address[] = [
-    {
-        id: 1,
-        name: "Raghavendar",
-        address: "Flat No. 204, Sri Lakshmi Residency, Near HDFC Bank, Miyapur Main Road, Hyderabad, Telangana - 500039",
-        phone: "+91 9876543210",
-    },
-    {
-        id: 2,
-        name: "Raghavendar",
-        address: "Flat No. 204, Sri Lakshmi Residency, Near HDFC Bank, Miyapur Main Road, Hyderabad, Telangana - 500039",
-        phone: "+91 9876543210",
-    },
-];
+// const sampleAddresses: Address[] = [
+//     {
+//         id: 1,
+//         name: "Raghavendar",
+//         address: "Flat No. 204, Sri Lakshmi Residency, Near HDFC Bank, Miyapur Main Road, Hyderabad, Telangana - 500039",
+//         phone: "+91 9876543210",
+//     },
+//     {
+//         id: 2,
+//         name: "Raghavendar",
+//         address: "Flat No. 204, Sri Lakshmi Residency, Near HDFC Bank, Miyapur Main Road, Hyderabad, Telangana - 500039",
+//         phone: "+91 9876543210",
+//     },
+// ];
 
-const sampleOrderItems: OrderItem[] = [
-    {
-        id: 1,
-        name: "Lower Kindergarten",
-        description: "Second language: Hindi",
-        image: dummyImage,
-        price: 2280,
-        quantity: 1,
-    },
-    {
-        id: 2,
-        name: "Apsara A4 Size Long Notebook-ruled 120 Pages",
-        description: "",
-        image: dummyImage2,
-        price: 488,
-        quantity: 1,
-    },
-    {
-        id: 3,
-        name: "Apsara A4 Size Long Notebook-ruled 120 Pages",
-        description: "",
-        image: dummyImage2,
-        price: 488,
-        quantity: 1,
-    },
-];
+// Removed sampleOrderItems
 
 const Checkout: React.FC = () => {
-    const [selectedAddress, setSelectedAddress] = useState<number>(1);
+    // const navigate = useNavigate();
+    const [selectedAddress, setSelectedAddress] = useState<number | null>(null);
     const [paymentMethod, setPaymentMethod] = useState("cash");
-    const [orderItems, setOrderItems] = useState<OrderItem[]>(sampleOrderItems);
+    const [cartItems, setCartItems] = useState<CartItem[]>([]);
+    const [cartLoading, setCartLoading] = useState(true);
     const [showAllAddresses, setShowAllAddresses] = useState(false);
     const [addAddressModalOpen, setAddAddressModalOpen] = useState(false);
-    const [addresses, setAddresses] = useState<Address[]>(sampleAddresses);
+    const [addresses, setAddresses] = useState<Address[]>([]);
+    const [addressesLoading, setAddressesLoading] = useState(true);
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+    const [addressToDelete, setAddressToDelete] = useState<number | null>(null);
+    const [deleting, setDeleting] = useState(false);
+    const [addressToEdit, setAddressToEdit] = useState<Address | null>(null);
+    const [couponCode, setCouponCode] = useState("");
+
+    const fetchAddresses = async () => {
+        setAddressesLoading(true);
+        try {
+            const response = await getAddressList();
+            let addressData: Address[] = [];
+
+            if (Array.isArray(response)) {
+                addressData = response;
+            } else if (response && response.user_address) {
+                addressData = response.user_address;
+            } else if (response && response.addresses) {
+                addressData = response.addresses;
+            }
+
+            setAddresses(addressData);
+            if (addressData.length > 0 && !selectedAddress) {
+                setSelectedAddress(addressData[0].address_id);
+            }
+        } catch (error) {
+            console.error("Failed to fetch addresses:", error);
+        } finally {
+            setAddressesLoading(false);
+        }
+    };
+
+    const fetchCartData = async () => {
+        setCartLoading(true);
+        try {
+            const data = await getCartDetails();
+            if (data.user_cart && data.user_cart.length > 0) {
+                setCartItems(data.user_cart[0].CartItems || []);
+            }
+        } catch (error: any) {
+            console.error("Failed to fetch cart:", error);
+            toast.error("Failed to load cart items");
+        } finally {
+            setCartLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchAddresses();
+        fetchCartData();
+    }, []);
 
     const displayedAddresses = showAllAddresses ? addresses : addresses.slice(0, 2);
 
     const handleAddAddress = (addressData: AddressFormData) => {
-        // Create new address from form data
-        const newAddress: Address = {
-            id: addresses.length + 1,
-            name: addressData.fullName,
-            address: `${addressData.address}, ${addressData.city}, ${addressData.state} - ${addressData.pinCode}`,
-            phone: addressData.phoneNumber,
+        // Just refresh the list from the API since the modal already called create
+        fetchAddresses();
+    };
+
+    const handleQuantityChange = async (cartItemId: number, change: number) => {
+        const item = cartItems.find(i => i.cart_item_id === cartItemId);
+        if (!item) return;
+
+        const newQuantity = Math.max(1, item.quantity + change);
+        if (newQuantity === item.quantity) return;
+
+        try {
+            await updateCartItemQuantity({ cart_item_id: cartItemId, quantity: newQuantity });
+            setCartItems((prevItems) =>
+                prevItems.map((i) =>
+                    i.cart_item_id === cartItemId ? { ...i, quantity: newQuantity, total_price: i.unit_price * newQuantity } : i
+                )
+            );
+        } catch (error: any) {
+            console.error("Failed to update quantity:", error);
+            toast.error("Failed to update quantity");
+        }
+    };
+
+    const handlePlaceOrder = async () => {
+        if (!selectedAddress) {
+            toast.error("Please select a shipping address");
+            return;
+        }
+
+        const payload: PlaceOrderPayload = {
+            order_items: cartItems
+                .filter(item => item.cl_id !== null)
+                .map(item => ({
+                    cl_id: item.cl_id,
+                    school_id: (item as any).school_id || 0, // Fallback to 0 if not present
+                    admission_id: item.admission_id,
+                    student_name: item.student_name,
+                    class_id: item.class_id,
+                    quantity: item.quantity,
+                    bundle_products: item.CartItemBundles.map(bp => ({
+                        product_id: bp.product_id,
+                        quantity: bp.quantity
+                    }))
+                })),
+            products: cartItems
+                .filter(item => item.product_id !== null && item.cl_id === null)
+                .map(item => ({
+                    product_id: item.product_id!,
+                    quantity: item.quantity
+                })),
+            shipping_address_id: selectedAddress,
+            billing_address_id: selectedAddress,
+            couponcode: couponCode,
+            payment_type: paymentMethod
         };
-        setAddresses([...addresses, newAddress]);
-        // Auto-select the newly added address
-        setSelectedAddress(newAddress.id);
+
+        try {
+            const response = await placeOrder(payload);
+            toast.success(response.message || "Order placed successfully!");
+            // navigate("/order-success"); // Redirect after success
+        } catch (error: any) {
+            console.error("Failed to place order:", error);
+            toast.error(error.response?.data?.message || "Failed to place order. Please try again.");
+        }
     };
 
-    const handleQuantityChange = (id: number, change: number) => {
-        setOrderItems((prevItems) =>
-            prevItems.map((item) => {
-                if (item.id === id) {
-                    const newQuantity = Math.max(1, item.quantity + change);
-                    return { ...item, quantity: newQuantity };
-                }
-                return item;
-            })
-        );
+    // Helper functions from Cart.tsx
+    const getProductImage = (item: CartItem): string => {
+        if (item.Product?.image1) {
+            return `${import.meta.env.VITE_API_BASE_URL}/${item.Product.image1}`;
+        }
+        if (item.Class?.image) {
+            return item.Class.image;
+        }
+        return dummyImage;
     };
 
-    const handlePlaceOrder = () => {
-        // Handle place order logic
-        console.log("Placing order:", {
-            addressId: selectedAddress,
-            paymentMethod,
-            items: orderItems,
-        });
+    const getProductName = (item: CartItem): string => {
+        if (item.Product) return item.Product.name;
+        if (item.Class?.name) return item.Class.name;
+        if (item.ClassLanguage?.Class?.name) return item.ClassLanguage.Class.name;
+        if (item.student_class) return item.student_class;
+        if (item.bundle_name) return item.bundle_name;
+        return "Class Bundle";
     };
 
-    const subtotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const deliveryFee = 120;
-    const total = subtotal + deliveryFee;
+    const getProductDescription = (item: CartItem): string => {
+        if (item.Product) return item.Product.description || "";
+        if (item.CartItemBundles && item.CartItemBundles.length > 0) {
+            const bundleCount = item.CartItemBundles.length;
+            const language = item.ClassLanguage?.language || "";
+            return `1 Unit (${bundleCount} items), ${language}`;
+        }
+        return "";
+    };
+
+    const subtotal = cartItems.reduce((sum, item) => sum + item.total_price, 0);
+    const gst = Math.round(subtotal * 0.18);
+    const deliveryFee = 50; // Free delivery matching Cart.tsx
+    const total = subtotal + gst + deliveryFee;
+
+    const handleEditClick = (address: Address) => {
+        setAddressToEdit(address);
+        setAddAddressModalOpen(true);
+    };
+
+    const handleDeleteClick = (addressId: number) => {
+        setAddressToDelete(addressId);
+        setDeleteConfirmOpen(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!addressToDelete) return;
+        setDeleting(true);
+        try {
+            await deleteAddress(addressToDelete);
+            toast.success("Address deleted successfully");
+            setDeleteConfirmOpen(false);
+            setAddressToDelete(null);
+            fetchAddresses(); // Refresh list
+        } catch (error: any) {
+            console.error("Failed to delete address:", error);
+            toast.error(error.response?.data?.message || "Failed to delete address");
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    const handleCloseDeleteModal = () => {
+        setDeleteConfirmOpen(false);
+        setAddressToDelete(null);
+    };
+
+
 
     return (
         <>
-            {/* <Breadcrumb items={[{ label: "Home", path: "/home" }, { label: "Cart", path: "/cart" }, { label: "Checkout" }]} /> */}
+            <Breadcrumb items={[{ label: "Home", path: "/home" }, { label: "Cart", path: "/cart" }, { label: "Checkout" }]} />
             <CheckoutContainer>
                 <Container maxWidth="xl">
                     <Grid container spacing={4}>
@@ -358,33 +490,55 @@ const Checkout: React.FC = () => {
                                         value={selectedAddress}
                                         onChange={(e) => setSelectedAddress(Number(e.target.value))}
                                     >
-                                        {displayedAddresses.map((address) => (
-                                            <AddressCard key={address.id}>
-                                                <Radio
-                                                    value={address.id}
-                                                    sx={{
-                                                        color: "#2C65F9",
-                                                        padding: "0",
-                                                        "&.Mui-checked": {
+                                        {addressesLoading ? (
+                                            <Box sx={{ py: 4, textAlign: "center" }}>
+                                                <Typography color="text.secondary">Loading addresses...</Typography>
+                                            </Box>
+                                        ) : addresses.length === 0 ? (
+                                            <Box sx={{ py: 4, textAlign: "center" }}>
+                                                <Typography color="text.secondary">No addresses found. Please add a new address.</Typography>
+                                            </Box>
+                                        ) : (
+                                            displayedAddresses.map((address) => (
+                                                <AddressCard key={address.address_id}>
+                                                    <Radio
+                                                        value={address.address_id}
+                                                        sx={{
                                                             color: "#2C65F9",
-                                                        },
-                                                    }}
-                                                />
-                                                <AddressInfo>
-                                                    <Typography variant="m16">{address.name}</Typography>
-                                                    <Typography variant="m14">{address.address}</Typography>
-                                                    <Typography variant="m16">Contact : {address.phone}</Typography>
-                                                    <AddressActions>
-                                                        <Button variant="text" sx={{ color: "#121419", fontWeight: 600 }}>Edit</Button>
-                                                        <Typography variant="m16" color="text.secondary">|</Typography>
-                                                        <Button variant="text" sx={{ color: "#121419", fontWeight: 600 }}>Delete</Button>
-                                                    </AddressActions>
-                                                </AddressInfo>
-                                            </AddressCard>
-                                        ))}
+                                                            padding: "0",
+                                                            "&.Mui-checked": {
+                                                                color: "#2C65F9",
+                                                            },
+                                                        }}
+                                                    />
+                                                    <AddressInfo>
+                                                        <Typography variant="m16">{address.first_name}</Typography>
+                                                        <Typography variant="m14">{address.address1}, {address.city}, {address.state_id} - {address.pincode}</Typography>
+                                                        <Typography variant="m16">Contact : {address.phone}</Typography>
+                                                        <AddressActions>
+                                                            <Button
+                                                                variant="text"
+                                                                sx={{ color: "#121419", fontWeight: 600 }}
+                                                                onClick={() => handleEditClick(address)}
+                                                            >
+                                                                Edit
+                                                            </Button>
+                                                            <Typography variant="m16" color="text.secondary">|</Typography>
+                                                            <Button
+                                                                variant="text"
+                                                                sx={{ color: "#121419", fontWeight: 600 }}
+                                                                onClick={() => handleDeleteClick(address.address_id)}
+                                                            >
+                                                                Delete
+                                                            </Button>
+                                                        </AddressActions>
+                                                    </AddressInfo>
+                                                </AddressCard>
+                                            ))
+                                        )}
                                     </RadioGroup>
                                 </FormControl>
-                                {addresses.length > 1 && !showAllAddresses && (
+                                {addresses.length > 2 && (
                                     <Box sx=
                                         {{
                                             display: "flex",
@@ -395,8 +549,12 @@ const Checkout: React.FC = () => {
                                             borderTop: "1px solid #1214191A",
                                             marginTop: "30px"
                                         }}>
-                                        <Button variant="text" sx={{ color: "#121419", fontWeight: 500 }} onClick={() => setShowAllAddresses(true)}>
-                                            See More
+                                        <Button
+                                            variant="text"
+                                            sx={{ color: "#121419", fontWeight: 500 }}
+                                            onClick={() => setShowAllAddresses(!showAllAddresses)}
+                                        >
+                                            {showAllAddresses ? "See Less" : "See More"}
                                         </Button>
                                     </Box>
                                 )}
@@ -480,71 +638,78 @@ const Checkout: React.FC = () => {
 
                                 {/* Order Items */}
                                 <Stack spacing={2} sx={{ marginBottom: "10px" }}>
-                                    {orderItems.map((item) => (
-                                        <OrderItem key={item.id}>
-                                            <Box
-                                                sx={{
-                                                    width: "80px",
-                                                    height: "80px",
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    justifyContent: "center",
-                                                    backgroundColor: "#F9FAFB",
-                                                    borderRadius: "8px",
-                                                }}
-                                            >
-                                                <ItemImage
-                                                    src={item.image}
-                                                    alt={item.name}
-                                                    onError={(e) => {
-                                                        (e.target as HTMLImageElement).src = "";
+                                    {cartLoading ? (
+                                        <Typography sx={{ py: 2, textAlign: "center" }}>Loading items...</Typography>
+                                    ) : cartItems.length === 0 ? (
+                                        <Typography sx={{ py: 2, textAlign: "center" }}>Your cart is empty</Typography>
+                                    ) : (
+                                        cartItems.map((item) => (
+                                            <OrderItem key={item.cart_item_id}>
+                                                <Box
+                                                    sx={{
+                                                        width: "80px",
+                                                        height: "80px",
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        justifyContent: "center",
+                                                        backgroundColor: "#F9FAFB",
+                                                        borderRadius: "8px",
                                                     }}
-                                                />
-                                            </Box>
-                                            <ItemInfo>
-                                                <Stack spacing={2} sx={{ display: "flex", flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", height: "100%" }}>
-                                                    <Stack width="70%">
-                                                        <ItemName>{item.name}</ItemName>
-                                                        {item.description && (
-                                                            <ItemDescription>{item.description}</ItemDescription>
-                                                        )}
-                                                    </Stack>
-                                                    <ItemPrice>₹ {(item.price * item.quantity).toLocaleString("en-IN")}/-</ItemPrice>
-                                                </Stack>
-
-                                                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", }}>
-                                                    <Box>
-                                                        <QuantityButton
-                                                            onClick={() => handleQuantityChange(item.id, -1)}
-                                                            disabled={item.quantity <= 1}
-                                                        >
-                                                            <Remove fontSize="small" />
-                                                        </QuantityButton>
-                                                        <QuantityInput
-                                                            type="number"
-                                                            value={item.quantity}
-                                                            readOnly
-                                                            min="1"
-                                                            sx={{
-                                                                border: "1px solid #202228",
-                                                                height: "27px",
-                                                                width: "27px",
-                                                                borderRadius: "4px",
-                                                                margin: "0 10px 0px 13px",
-                                                                fontSize: "16px",
-                                                                fontWeight: 500,
-                                                                fontFamily: "Figtree, sans-serif",
-                                                            }}
-                                                        />
-                                                        <QuantityButton onClick={() => handleQuantityChange(item.id, 1)}>
-                                                            <Add fontSize="small" />
-                                                        </QuantityButton>
-                                                    </Box>
+                                                >
+                                                    <ItemImage
+                                                        src={getProductImage(item)}
+                                                        alt={getProductName(item)}
+                                                        onError={(e) => {
+                                                            (e.target as HTMLImageElement).src = dummyImage;
+                                                        }}
+                                                    />
                                                 </Box>
-                                            </ItemInfo>
-                                        </OrderItem>
-                                    ))}
+                                                <ItemInfo>
+                                                    <Stack spacing={2} sx={{ display: "flex", flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", height: "100%" }}>
+                                                        <Stack width="70%">
+                                                            <ItemName>{getProductName(item)}</ItemName>
+                                                            {getProductDescription(item) && (
+                                                                <ItemDescription>{getProductDescription(item)}</ItemDescription>
+                                                            )}
+                                                        </Stack>
+                                                        <ItemPrice>₹ {item.total_price.toLocaleString("en-IN")}/-</ItemPrice>
+                                                    </Stack>
+
+                                                    {/* <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", }}>
+                                                        <Box>
+                                                            <QuantityButton
+                                                                onClick={() => handleQuantityChange(item.cart_item_id, -1)}
+                                                                disabled={item.quantity <= 1}
+                                                            >
+                                                                <Remove fontSize="small" />
+                                                            </QuantityButton>
+                                                            <QuantityInput
+                                                                type="number"
+                                                                value={item.quantity}
+                                                                readOnly
+                                                                min="1"
+                                                                sx={{
+                                                                    border: "1px solid #202228",
+                                                                    height: "27px",
+                                                                    width: "27px",
+                                                                    borderRadius: "4px",
+                                                                    margin: "0 10px 0px 13px",
+                                                                    fontSize: "16px",
+                                                                    fontWeight: 500,
+                                                                    fontFamily: "Figtree, sans-serif",
+                                                                }}
+                                                            />
+                                                            <QuantityButton onClick={() => handleQuantityChange(item.cart_item_id, 1)}>
+                                                                <Add fontSize="small" />
+                                                            </QuantityButton>
+                                                        </Box>
+                                                    </Box> */}
+                                                </ItemInfo>
+                                            </OrderItem>
+                                        ))
+                                    )}
                                 </Stack>
+
 
                                 {/* Summary Totals */}
                                 <Stack spacing={2}>
@@ -553,13 +718,38 @@ const Checkout: React.FC = () => {
                                         <SummaryValue>₹ {subtotal.toLocaleString("en-IN")}/-</SummaryValue>
                                     </SummaryRow>
                                     <SummaryRow>
+                                        <SummaryLabel>GST (18%)</SummaryLabel>
+                                        <SummaryValue>₹ {gst.toLocaleString("en-IN")}/-</SummaryValue>
+                                    </SummaryRow>
+                                    <SummaryRow>
                                         <SummaryLabel>Delivery Fee</SummaryLabel>
-                                        <SummaryValue>₹ {deliveryFee.toLocaleString("en-IN")}/-</SummaryValue>
+                                        <SummaryValue>{deliveryFee === 50 ? "₹ 50/-" : `₹ ${deliveryFee}/-`}</SummaryValue>
                                     </SummaryRow>
                                     <TotalRow>
                                         <TotalLabel>Total</TotalLabel>
                                         <TotalValue>₹ {total.toLocaleString("en-IN")}/-</TotalValue>
                                     </TotalRow>
+                                    {/* Coupon Code */}
+                                    <Box sx={{ marginBottom: "24px", paddingTop: "10px" }}>
+                                        {/* <Typography variant="m16" sx={{ marginBottom: "12px", display: "block" }}>Apply Coupon</Typography> */}
+                                        <Box sx={{ display: "flex", gap: "12px" }}>
+                                            <TextField
+                                                fullWidth
+                                                placeholder="Enter coupon code"
+                                                value={couponCode}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCouponCode(e.target.value)}
+                                                sx={{
+                                                    "& .MuiInputBase-root": {
+                                                        height: "44px",
+                                                        backgroundColor: "#F9FAFB",
+                                                    }
+                                                }}
+                                            />
+                                            <Button variant="outlined" sx={{ height: "44px", whiteSpace: "nowrap" }}>
+                                                Apply
+                                            </Button>
+                                        </Box>
+                                    </Box>
                                 </Stack>
 
                                 <Button variant="contained" sx={{ width: "100%", marginTop: "24px" }} color="primary" onClick={handlePlaceOrder}>
@@ -573,9 +763,61 @@ const Checkout: React.FC = () => {
                 {/* Add Address Modal */}
                 <AddAddressModal
                     open={addAddressModalOpen}
-                    onClose={() => setAddAddressModalOpen(false)}
+                    onClose={() => {
+                        setAddAddressModalOpen(false);
+                        setAddressToEdit(null);
+                    }}
                     onAddAddress={handleAddAddress}
+                    initialData={addressToEdit}
                 />
+
+                {/* Delete Confirmation Modal */}
+                <Dialog
+                    open={deleteConfirmOpen}
+                    onClose={handleCloseDeleteModal}
+                    PaperProps={{
+                        sx: {
+                            borderRadius: "12px",
+                            padding: "24px",
+                        }
+                    }}
+                >
+                    <DialogTitle variant="sb20" sx={{ p: 0, fontWeight: 600, mb: 4 }}>Delete Address</DialogTitle>
+                    <DialogContent sx={{
+                        padding: "20px 0px",
+                        mb: 3
+                    }}>
+                        <Typography variant="m14" color="text.primary">
+                            Are you sure you want to delete this address? This action cannot be undone.
+                        </Typography>
+                    </DialogContent >
+                    <DialogActions sx={{ padding: "16px 24px" }}>
+                        <Button
+                            variant="outlined"
+                            onClick={handleCloseDeleteModal}
+                            disabled={deleting}
+                            sx={{
+                                padding: "10px 15px",
+                                color: "#121318",
+                                borderColor: "#E5E7EB",
+                                width: "136px",
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleConfirmDelete}
+                            variant="contained"
+                            disabled={deleting}
+                            sx={{
+                                padding: "10px 15px",
+                                width: "136px",
+                            }}
+                        >
+                            {deleting ? "Deleting..." : "Delete"}
+                        </Button>
+                    </DialogActions>
+                </Dialog>
             </CheckoutContainer>
         </>
     );

@@ -11,6 +11,7 @@ import Cart from "./pages/cart/Cart";
 import Checkout from "./pages/checkout/Checkout";
 import ProductListing from "./pages/categories/ProductListing";
 import ProductDetails from "./pages/categories/ProductDetails";
+import ProfileInformation from "./pages/profile/ProfileInformation";
 import ScrollToTop from "./components/ScrollToTop";
 import Layout from "./layouts/Layout";
 
@@ -38,8 +39,9 @@ function App() {
               <Route path="/schools/:schoolSlug/:classSlug" element={<BundleDetails />} />
               <Route path="/cart" element={<Cart />} />
               <Route path="/checkout" element={<Checkout />} />
+              <Route path="/profile" element={<ProfileInformation />} />
               <Route path="/categories" element={<ProductListing />} />
-              <Route path="/categories/:productSlug" element={<ProductDetails />} />
+              <Route path="/product/:id" element={<ProductDetails />} />
             </Routes>
           </Layout>
         </BrowserRouter>

@@ -124,7 +124,87 @@ export interface ProductListResponse {
 }
 
 
+export interface PublicProduct {
+    product_id: number;
+    category_id: number;
+    sub_category_id: number;
+    brand_id: number | null;
+    name: string;
+    description: string;
+    image: string; // JSON string of images
+    image1: string;
+    image2: string | null;
+    image3: string | null;
+    image4: string | null;
+    image5: string | null;
+    mrp: number;
+    selling_price: number;
+    discount_percentage: number;
+    sku: string;
+    stock_quantity: number;
+    is_active: boolean;
+    is_delete: boolean;
+    createdAt: string;
+    updatedAt: string;
+    Category: {
+        category_id: number;
+        name: string;
+        image: string | null;
+        is_active: boolean;
+        visibility: boolean;
+    };
+    SubCategory: {
+        sub_category_id: number;
+        category_id: number;
+        name: string;
+        is_active: boolean;
+    };
+    Brand: any;
+    images: string[];
+}
+
+export interface PublicProductResponse {
+    count: number;
+    rows: PublicProduct[];
+}
+
+export interface PublicProductDetailResponse {
+    Category: {
+        category_id: number;
+        name: string;
+        image: string | null;
+        is_active: boolean;
+        visibility: boolean;
+        createdAt: string;
+        updatedAt: string;
+        SubCategory: {
+            sub_category_id: number;
+            category_id: number;
+            name: string;
+            is_active: boolean;
+            createdAt: string;
+            updatedAt: string;
+            Product: PublicProduct;
+        };
+    };
+}
+
 export const getProductList = async () => {
     const response = await axiosClient.get<ProductListResponse>("/Product/list");
+    return response.data;
+};
+
+export const getProductPublicList = async () => {
+    const response = await axiosClient.get<PublicProductResponse>("/Product/public/list");
+    return response.data;
+};
+
+export const getProductPublicDiscountedList = async () => {
+    const response = await axiosClient.get<PublicProductResponse>("/Product/public/discounted-list");
+    return response.data;
+};
+
+export const getProductDetails = async (id: number | string) => {
+    const response = await axiosClient.get<PublicProductDetailResponse>(`/Product/view/${id}`);
     return response.data;
 };
