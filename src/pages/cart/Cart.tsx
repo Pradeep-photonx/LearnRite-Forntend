@@ -7,7 +7,6 @@ import {
   Paper,
   Stack,
   IconButton,
-  TextField,
   styled,
   Table,
   TableBody,
@@ -27,7 +26,7 @@ import { useNavigate } from "react-router-dom";
 import dummyImage from "../../assets/images/sm-cart.png";
 import LoginModal from "../../components/modals/LoginModal";
 import SignUpModal from "../../components/modals/SignUpModal";
-import { getCartDetails, removeCartItem, type CartItem } from "../../api/cart";
+import { getCartDetails, removeCartItem, updateCartItemQuantity, type CartItem } from "../../api/cart";
 import { useEffect } from "react";
 import toast from "react-hot-toast";
 
@@ -69,7 +68,7 @@ const ProductCell = styled(TableCell)({
 const ProductInfo = styled(Box)({
   display: "flex",
   gap: "16px",
-  alignItems: "center",
+  alignItems: "flex-start",
 });
 
 const ProductImage = styled("img")({
@@ -93,6 +92,10 @@ const ProductName = styled(Typography)({
 
 const ProductDescription = styled(Typography)({
   fontSize: "14px",
+  width: "300px",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
   color: "#121318",
   fontWeight: 400,
   fontFamily: "Figtree, sans-serif",
@@ -208,48 +211,6 @@ const TotalValue = styled(Typography)({
   fontFamily: "Figtree, sans-serif",
 });
 
-const CouponContainer = styled(Box)({
-  display: "flex",
-  gap: "12px",
-  marginTop: "20px",
-  marginBottom: "24px",
-});
-
-const CouponInput = styled(TextField)({
-  flex: 1,
-  "& .MuiOutlinedInput-root": {
-    borderRadius: "8px",
-    fontSize: "16px",
-    fontFamily: "Figtree, sans-serif",
-    "& fieldset": {
-      borderColor: "#D1D4DE",
-    },
-    "&:hover fieldset": {
-      borderColor: "#D1D4DE",
-    },
-    "&.Mui-focused fieldset": {
-      borderColor: "#2C65F9",
-    },
-  },
-});
-
-const ApplyButton = styled(Button)({
-  minWidth: "80px",
-  padding: "12px 20px",
-  borderRadius: "8px",
-  border: "1px solid #D1D4DE",
-  color: "#121318",
-  backgroundColor: "#FFFFFF",
-  textTransform: "none",
-  fontSize: "14px",
-  fontWeight: 500,
-  fontFamily: "Figtree, sans-serif",
-  "&:hover": {
-    backgroundColor: "#F9FAFB",
-    borderColor: "#9CA3AF",
-  },
-});
-
 const CheckoutButton = styled(Button)({
   width: "100%",
   padding: "14px 24px",
@@ -274,7 +235,6 @@ const Cart: React.FC = () => {
   const navigate = useNavigate();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [couponCode, setCouponCode] = useState("");
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [signUpModalOpen, setSignUpModalOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -308,16 +268,38 @@ const Cart: React.FC = () => {
     return !!localStorage.getItem("token");
   };
 
-  const handleQuantityChange = (cartItemId: number, change: number) => {
+  const handleQuantityChange = async (cartItemId: number, change: number) => {
+    // 1. Update local state immediately for performance
     setCartItems((prevItems) =>
       prevItems.map((item) => {
         if (item.cart_item_id === cartItemId) {
           const newQuantity = Math.max(1, item.quantity + change);
-          return { ...item, quantity: newQuantity };
+          const newTotalPrice = newQuantity * item.unit_price;
+          return { ...item, quantity: newQuantity, total_price: newTotalPrice };
         }
         return item;
       })
     );
+
+    // 2. Persist to API
+    try {
+      const itemToUpdate = cartItems.find(i => i.cart_item_id === cartItemId);
+      if (itemToUpdate) {
+        const newQuantity = Math.max(1, itemToUpdate.quantity + change);
+        await updateCartItemQuantity({
+          cart_item_id: cartItemId,
+          quantity: newQuantity
+        });
+      }
+    } catch (error: any) {
+      console.error("Failed to update quantity:", error);
+      toast.error("Failed to sync quantity with server");
+      // Optionally: Revert state if API fails
+      const data = await getCartDetails();
+      if (data.user_cart && data.user_cart.length > 0) {
+        setCartItems(data.user_cart[0].CartItems || []);
+      }
+    }
   };
 
   const handleRemoveItem = async (cartItemId: number) => {
@@ -351,11 +333,6 @@ const Cart: React.FC = () => {
     setItemToDelete(null);
   };
 
-  const handleApplyCoupon = () => {
-    // Handle coupon application
-    console.log("Applying coupon:", couponCode);
-  };
-
   const handleCheckout = () => {
     // Check if user is logged in
     if (isLoggedIn()) {
@@ -381,16 +358,23 @@ const Cart: React.FC = () => {
 
   // Helper function to get product image
   const getProductImage = (item: CartItem): string => {
-    if (item.Product?.image1) {
-      return `${import.meta.env.VITE_API_BASE_URL}/${item.Product.image1}`;
-    }
-    // For bundle items, use the class image if available
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || "";
+
+    // 1. Prioritize Class/Bundle image if available
     if (item.Class?.image) {
-      return item.Class.image;
+      return item.Class.image.startsWith("http")
+        ? item.Class.image
+        : `${baseUrl}/${item.Class.image}`;
     }
-    if (item.CartItemBundles && item.CartItemBundles.length > 0) {
-      return dummyImage; // Use default for bundles
+
+    // 2. Fallback to Product image
+    if (item.Product?.image1) {
+      return item.Product.image1.startsWith("http")
+        ? item.Product.image1
+        : `${baseUrl}/${item.Product.image1}`;
     }
+
+    // 3. Fallback to dummy image
     return dummyImage;
   };
 
@@ -491,35 +475,40 @@ const Cart: React.FC = () => {
                               </ProductInfo>
                             </ProductCell>
                             <ProductCell width="150px" align="center">
-                              <QuantityControl>
-                                <QuantityButton
-                                  onClick={() => handleQuantityChange(item.cart_item_id, -1)}
-                                  disabled={item.quantity <= 1}
-                                >
-                                  <Remove fontSize="small" />
-                                </QuantityButton>
-                                <QuantityInput
-                                  type="number"
-                                  value={item.quantity}
-                                  readOnly
-                                  min="1"
-                                  sx={{
-                                    border: "1px solid #202228",
-                                    height: "27px",
-                                    width: "27px",
-                                    borderRadius: "4px",
-                                    margin: "0 10px 0px 13px",
-                                    fontSize: "16px",
-                                    fontWeight: 500,
-                                    fontFamily: "Figtree, sans-serif",
-                                  }}
-                                />
-                                <QuantityButton
-                                  onClick={() => handleQuantityChange(item.cart_item_id, 1)}
-                                >
-                                  <Add fontSize="small" />
-                                </QuantityButton>
-                              </QuantityControl>
+                              {/* Show quantity control only for individual products, not bundles */}
+                              {item.product_id ? (
+                                <QuantityControl>
+                                  <QuantityButton
+                                    onClick={() => handleQuantityChange(item.cart_item_id, -1)}
+                                    disabled={item.quantity <= 1}
+                                  >
+                                    <Remove fontSize="small" />
+                                  </QuantityButton>
+                                  <QuantityInput
+                                    type="number"
+                                    value={item.quantity}
+                                    readOnly
+                                    min="1"
+                                    sx={{
+                                      border: "1px solid #202228",
+                                      height: "27px",
+                                      width: "27px",
+                                      borderRadius: "4px",
+                                      margin: "0 10px 0px 13px",
+                                      fontSize: "16px",
+                                      fontWeight: 500,
+                                      fontFamily: "Figtree, sans-serif",
+                                    }}
+                                  />
+                                  <QuantityButton
+                                    onClick={() => handleQuantityChange(item.cart_item_id, 1)}
+                                  >
+                                    <Add fontSize="small" />
+                                  </QuantityButton>
+                                </QuantityControl>
+                              ) : (
+                                <Typography variant="m16" color="text.secondary">—</Typography>
+                              )}
                             </ProductCell>
                             <ProductCell width="150px" align="center">
                               <PriceText>

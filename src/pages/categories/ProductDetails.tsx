@@ -22,6 +22,8 @@ import type { PublicProduct } from "../../api/product";
 import { addToCart } from "../../api/cart";
 import { toast } from "react-hot-toast";
 import { usePublicProducts } from "../../api/usePublicProducts";
+import LoginModal from "../../components/modals/LoginModal";
+import SignUpModal from "../../components/modals/SignUpModal";
 
 // Styled Components
 const PageContainer = styled(Box)({
@@ -130,7 +132,7 @@ const DescriptionText = styled(Typography)({
 });
 
 const ActionButtons = styled(Stack)({
-  flexDirection: "row",
+  flexDirection: "column",
   gap: "16px",
   margin: "32px 0",
   "@media (max-width: 600px)": {
@@ -277,6 +279,8 @@ const ProductDetails: React.FC = () => {
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [addingToCart, setAddingToCart] = useState(false);
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [signUpModalOpen, setSignUpModalOpen] = useState(false);
 
   // Fetch related products
   const { products: fetchedRelated, loading: relatedLoading } = usePublicProducts();
@@ -384,7 +388,13 @@ const ProductDetails: React.FC = () => {
     setSelectedImageIndex((prev) => (prev < allImages.length - 1 ? prev + 1 : 0));
   };
 
-  const onAddToCart = async () => {
+  const onAddToCart = async (redirectPath: string = "/cart") => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setLoginModalOpen(true);
+      return;
+    }
+
     try {
       setAddingToCart(true);
       await addToCart({
@@ -399,6 +409,7 @@ const ProductDetails: React.FC = () => {
         class_id: null
       });
       toast.success("Added to cart successfully!");
+      navigate(redirectPath);
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Failed to add to cart");
     } finally {
@@ -407,12 +418,17 @@ const ProductDetails: React.FC = () => {
   };
 
   const handleBuyNow = async () => {
-    await onAddToCart();
-    navigate("/cart");
+    await onAddToCart("/checkout");
   };
 
   const handleRelatedAddToCart = async (e: React.MouseEvent, productId: number) => {
     e.stopPropagation();
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setLoginModalOpen(true);
+      return;
+    }
+
     try {
       await addToCart({
         products: [{
@@ -426,6 +442,7 @@ const ProductDetails: React.FC = () => {
         class_id: null
       });
       toast.success("Added to cart successfully!");
+      navigate("/cart");
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Failed to add to cart");
     }
@@ -533,12 +550,12 @@ const ProductDetails: React.FC = () => {
                 {product.stock_quantity > 0 ? `In Stock (${product.stock_quantity} units available)` : "Out of Stock"}
               </Typography>
 
-              <Box sx={{ mt: 3 }}>
-                <Typography variant="sb16" gutterBottom>Description</Typography>
+              <Box sx={{ mt: 2 }}>
+                {/* <Typography variant="sb16" gutterBottom>Description</Typography> */}
                 <DescriptionText>
                   {showFullDescription
                     ? product.description || "No description available."
-                    : (product.description?.substring(0, 250) || "No description available.") + (product.description?.length > 250 ? "..." : "")
+                    : (product.description?.substring(0, 150) || "No description available.") + (product.description?.length > 250 ? "..." : "")
                   }
                 </DescriptionText>
                 {product.description && product.description.length > 250 && (
@@ -554,7 +571,7 @@ const ProductDetails: React.FC = () => {
               <ActionButtons>
                 <OutlinedButton
                   variant="outlined"
-                  onClick={onAddToCart}
+                  onClick={() => onAddToCart()}
                   disabled={addingToCart || product.stock_quantity === 0}
                 >
                   {addingToCart ? <CircularProgress size={24} /> : "Add to Cart"}
@@ -593,7 +610,10 @@ const ProductDetails: React.FC = () => {
 
         {/* Related Products Section */}
         <RelatedSection>
-          <Typography variant="sb32" sx={{ mb: 4 }}>You May Also Like</Typography>
+          <Stack gap={"5px"} sx={{ marginBottom: "20px" }}>
+            <Typography variant="sb32">You May Also Like</Typography>
+            <Typography variant="m14" color="text.secondary">Suggestions based on what you’re browsing.</Typography>
+          </Stack>
 
           {relatedLoading ? (
             <Box sx={{ display: "flex", justifyContent: "center", py: 5 }}>
@@ -681,6 +701,27 @@ const ProductDetails: React.FC = () => {
           )}
         </RelatedSection>
       </Container>
+
+      {/* Login Modal */}
+      <LoginModal
+        open={loginModalOpen}
+        onClose={() => setLoginModalOpen(false)}
+        onLoginSuccess={() => setLoginModalOpen(false)}
+        onSignUpClick={() => {
+          setLoginModalOpen(false);
+          setSignUpModalOpen(true);
+        }}
+      />
+
+      {/* Sign Up Modal */}
+      <SignUpModal
+        open={signUpModalOpen}
+        onClose={() => setSignUpModalOpen(false)}
+        onLoginClick={() => {
+          setSignUpModalOpen(false);
+          setLoginModalOpen(true);
+        }}
+      />
     </PageContainer>
   );
 };
